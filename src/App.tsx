@@ -1,6 +1,6 @@
 import Chance from 'chance';
-import * as React from 'react';
 import Prism from 'prismjs';
+import * as React from 'react';
 import 'prismjs/components/prism-typescript';
 import 'prismjs/components/prism-jsx';
 import 'prismjs/components/prism-tsx';
@@ -44,7 +44,8 @@ function _highlightTSX(code: string): string {
   let out = src;
   for (const p of patterns) {
     out = out.replace(p.re, (m: string, ...rest: unknown[]) => {
-      const idx = typeof p.group === 'number' ? (rest[p.group - 1] as string | undefined) : undefined;
+      const idx =
+        typeof p.group === 'number' ? (rest[p.group - 1] as string | undefined) : undefined;
       if (idx) {
         // Replace only the group; keep full match intact
         const full = m;
@@ -675,18 +676,19 @@ export default function App() {
     if (p.showGroupByDropZone) props.push('showGroupByDropZone');
     if (p.defaultSorts) {
       const ds = p.defaultSorts as Sort[];
-      props.push(`defaultSorts={[${ds
-        .map((s) => `{ path: ${JSON.stringify(s.path)}, dir: '${s.dir}' }`)
-        .join(', ')}]}`);
+      props.push(
+        `defaultSorts={[${ds
+          .map((s) => `{ path: ${JSON.stringify(s.path)}, dir: '${s.dir}' }`)
+          .join(', ')}]}`,
+      );
     }
     if (p.defaultGroupBy) {
       const dg = p.defaultGroupBy as { path: ColumnPath }[];
-      props.push(`defaultGroupBy={[${dg
-        .map((g) => `{ path: ${JSON.stringify(g.path)} }`)
-        .join(', ')}]}`);
+      props.push(
+        `defaultGroupBy={[${dg.map((g) => `{ path: ${JSON.stringify(g.path)} }`).join(', ')}]}`,
+      );
     }
-    if (p.rowHeight !== undefined)
-      props.push(`rowHeight={${JSON.stringify(p.rowHeight)}}`);
+    if (p.rowHeight !== undefined) props.push(`rowHeight={${JSON.stringify(p.rowHeight)}}`);
 
     const open = `<MassiveTable<Row>\n  `;
     const body = props.map((line) => `  ${line}`).join('\n');
