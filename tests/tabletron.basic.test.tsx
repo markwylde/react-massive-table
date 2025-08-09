@@ -64,6 +64,7 @@ describe('Tabletron basic', () => {
         getRows={getRows}
         rowCount={50}
         columns={columns}
+        enableSort
         onSortsChange={onSortsChange}
       />,
     );

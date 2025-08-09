@@ -47,6 +47,7 @@ describe('Tabletron reorder & resize', () => {
         getRows={getRows}
         rowCount={10}
         columns={columns}
+        enableReorder
         onColumnOrderPreviewChange={onPreview}
         onColumnOrderChange={onFinal}
       />,
@@ -79,6 +80,7 @@ describe('Tabletron reorder & resize', () => {
         getRows={getRows}
         rowCount={10}
         columns={columns}
+        enableResize
       />,
     );
     const headerA = screen.getByRole('button', { name: 'A' });
