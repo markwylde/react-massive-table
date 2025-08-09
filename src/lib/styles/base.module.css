@@ -1,10 +1,11 @@
 /* Base structural styles and tokens using CSS variables */
 .root {
-  --massive-table-radius: var(--massive-table-radius, 10px);
-  --massive-table-header-h: var(--massive-table-header-h, 36px);
-  --massive-table-cell-px: var(--massive-table-cell-px, 10px);
-  --massive-table-cell-py: var(--massive-table-cell-py, 6px);
-  --massive-table-header-cell-py: var(--massive-table-header-cell-py, 4px);
+  /* Base layout defaults; themes may override as needed */
+  --massive-table-radius: 10px;
+  --massive-table-header-h: 36px;
+  --massive-table-cell-px: 10px;
+  --massive-table-cell-py: 6px;
+  --massive-table-header-cell-py: 4px;
 
   background: var(--massive-table-bg);
   color: var(--massive-table-color);
