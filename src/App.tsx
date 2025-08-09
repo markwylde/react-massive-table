@@ -334,9 +334,6 @@ export default function App() {
                 : `Final order: ${order.join(', ') || '(default)'}`}
             </span>
           )}
-          {activeExample.key === 'sorting' && (
-            <span style={{ color: '#555' }}>Shift+click headers to multi-sort.</span>
-          )}
         </div>
         <fieldset
           style={{
@@ -458,6 +455,7 @@ export default function App() {
             </p>
           </div>
           <Tabletron<Row | GroupHeader>
+            key={`${activeExample.key}:${activeVariantIndex}`}
             getRows={getRows}
             rowCount={rowCount}
             columns={columns}
