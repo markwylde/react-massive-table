@@ -128,12 +128,17 @@
   text-align: left;
   border-right: 1px solid var(--tabletron-border);
   white-space: nowrap;
-  cursor: grab;
   user-select: none;
   position: relative;
 }
-.headerCell:active {
+.headerCellGrab {
+  cursor: grab;
+}
+.headerCellGrab:active {
   cursor: grabbing;
+}
+.headerCellClickable {
+  cursor: pointer;
 }
 .headerCell:focus-visible {
   outline: none;

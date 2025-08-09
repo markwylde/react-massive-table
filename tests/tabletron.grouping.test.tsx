@@ -49,6 +49,7 @@ describe('Tabletron grouping', () => {
         getRows={getRows}
         rowCount={2}
         columns={columns}
+        showGroupByDropZone
         style={{ height: 240, width: 400 }}
       />,
     );
@@ -73,6 +74,7 @@ describe('Tabletron grouping', () => {
         getRows={getRows}
         rowCount={2}
         columns={columns}
+        showGroupByDropZone
         defaultGroupBy={[{ path: ['a'] }]}
       />,
     );

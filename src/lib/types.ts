@@ -94,10 +94,10 @@ export type TabletronProps<Row = unknown> = TabletronEvents<Row> & {
   // Optional CSS Modules override for theming
   classes?: Record<string, string>;
   // Feature toggles
-  enableSort?: boolean; // default: true
-  enableReorder?: boolean; // default: true (column drag to reorder)
-  enableResize?: boolean; // default: true (column resize handles)
-  showGroupByDropZone?: boolean; // default: true (shows group bar)
+  enableSort?: boolean; // default: false
+  enableReorder?: boolean; // default: false (column drag to reorder)
+  enableResize?: boolean; // default: false (column resize handles)
+  showGroupByDropZone?: boolean; // default: false (shows group bar)
   // Controlled/uncontrolled sorting
   sorts?: Sort<Row>[];
   defaultSorts?: Sort<Row>[];
