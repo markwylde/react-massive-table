@@ -507,11 +507,10 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
     for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
     return true;
   }, []);
-  const toggleSortForColumnIndex = (colIdx: number) => {
+  const toggleSortForColumnIndex = (colIdx: number, additive: boolean) => {
     if (!enableSort) return;
     if (isDraggingRef.current) return; // ignore click during drag
     if (Date.now() - suppressClickRef.current < 200) return; // ignore click immediately after drag
-    const additive = true; // always build multi-sorts by default
     const col = columnsOrdered[colIdx];
     const idx = sorts.findIndex((s) => pathEq(s.path, col.path));
     // Cycle: none -> asc -> desc -> none
@@ -792,11 +791,11 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
                 key={order[i]}
                 title={col.headerTooltip}
                 draggable={draggableFor}
-                onClick={() => toggleSortForColumnIndex(i)}
+                onClick={(e) => toggleSortForColumnIndex(i, e.shiftKey || e.metaKey || e.ctrlKey)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    toggleSortForColumnIndex(i);
+                    toggleSortForColumnIndex(i, e.shiftKey || e.metaKey || e.ctrlKey);
                   }
                 }}
                 onDragStart={handleHeaderDragStart(i)}

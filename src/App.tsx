@@ -267,9 +267,9 @@ export default function App() {
   const getRowsLogs = React.useCallback(
     (start: number, end: number, req?: RowsRequest<AnyRow>): GetRowsResult<AnyRow> => {
       const sorts = (req?.sorts as Sort<AnyRow>[]) ?? [];
-      // default to timestamp desc if no sorts
+      // default to index desc (visible column) if no sorts
       const effectiveSorts =
-        sorts.length > 0 ? sorts : ([{ path: ['ts'], dir: 'desc' }] as Sort<AnyRow>[]);
+        sorts.length > 0 ? sorts : ([{ path: ['index'], dir: 'desc' }] as Sort<AnyRow>[]);
       const cmp = makeComparator<AnyRow>(effectiveSorts);
 
       // Sort base data per user sorts
@@ -444,7 +444,7 @@ export default function App() {
               ) => GetRowsResult<Row | GroupHeader>,
               rowCount: logsData.length,
               enableSort: true,
-              defaultSorts: [{ path: ['ts'], dir: 'desc' }] as unknown as Sort[],
+              defaultSorts: [{ path: ['index'], dir: 'desc' }] as unknown as Sort[],
               expandedKeys: logsExpandedKeys,
               onExpandedKeysChange: setLogsExpandedKeys,
             },
