@@ -8,6 +8,10 @@ export type ColumnDef<Row = unknown> = {
   align?: 'left' | 'center' | 'right';
   headerTooltip?: string;
   render?: (value: unknown, row: Row, rowIndex: number) => React.ReactNode;
+  // When true, this column's values can be used to inline-group logically related rows
+  // (e.g., trace_id), showing only the first occurrence while collapsed.
+  // Note: This is distinct from the Group By feature.
+  inlineGroup?: boolean;
 };
 
 export type Theme = {

@@ -855,7 +855,22 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
                   }}
                   role="button"
                   tabIndex={0}
-                  className={baseStyles.row}
+                  className={cn(
+                    baseStyles.row,
+                    (() => {
+                      type InlineMeta = {
+                        __inlineGroupMember?: boolean;
+                        __inlineGroupAnchor?: boolean;
+                        __inlineGroupExpanded?: boolean;
+                      };
+                      const v = row as unknown as InlineMeta | null | undefined;
+                      const isMember = !!v?.__inlineGroupMember;
+                      const isExpandedAnchor = !!(
+                        v?.__inlineGroupAnchor && v?.__inlineGroupExpanded
+                      );
+                      return isMember || isExpandedAnchor ? baseStyles.inlineGroupMember : '';
+                    })(),
+                  )}
                 >
                   {(() => {
                     const isGroupRow = (
