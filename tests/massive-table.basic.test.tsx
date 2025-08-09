@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { act } from 'react';
 import * as React from 'react';
-import { Tabletron } from '../src';
+import { MassiveTable } from '../src';
 import type { ColumnDef, GetRowsResult, RowsRequest } from '../src/lib/types';
 
 type Row = { a: number; b: string };
@@ -28,12 +28,12 @@ function makeGetRows(rows = makeData()) {
     }));
 }
 
-describe('Tabletron basic', () => {
+describe('MassiveTable basic', () => {
   it('calls getRows with overscan and renders rows', async () => {
     const getRows = makeGetRows();
     await act(async () => {
       render(
-        <Tabletron<Row>
+        <MassiveTable<Row>
           getRows={getRows}
           rowCount={50}
           columns={columns}
@@ -60,7 +60,7 @@ describe('Tabletron basic', () => {
     const getRows = makeGetRows();
     const onSortsChange = vi.fn();
     render(
-      <Tabletron<Row>
+      <MassiveTable<Row>
         getRows={getRows}
         rowCount={50}
         columns={columns}
@@ -86,7 +86,7 @@ describe('Tabletron basic', () => {
     const getRows = makeGetRows(makeData(20));
     const onRowClick = vi.fn();
     render(
-      <Tabletron<Row>
+      <MassiveTable<Row>
         getRows={getRows}
         rowCount={20}
         columns={columns}

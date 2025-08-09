@@ -66,7 +66,7 @@ export type GetRows<Row = unknown> = (
   req?: RowsRequest<Row>,
 ) => Promise<GetRowsResult<Row> | Row[]> | GetRowsResult<Row> | Row[];
 
-export type TabletronEvents<Row = unknown> = {
+export type MassiveTableEvents<Row = unknown> = {
   onVisibleRangeChange?: (start: number, end: number) => void;
   onRowsRendered?: (start: number, end: number) => void;
   // Fires while dragging columns as the order changes live
@@ -80,14 +80,14 @@ export type TabletronEvents<Row = unknown> = {
   onExpandedKeysChange?: (expandedKeys: string[]) => void;
 };
 
-export type TabletronProps<Row = unknown> = TabletronEvents<Row> & {
+export type MassiveTableProps<Row = unknown> = MassiveTableEvents<Row> & {
   getRows: GetRows<Row>;
   rowCount: number;
   columns: ColumnDef<Row>[];
   rowHeight?: number | string | 'auto'; // e.g. 48, '75px', or 'auto'
   overscan?: number; // number of extra rows above/below
   theme?: Partial<Theme>;
-  // Preferred built-in theme mode. Applies Tabletron's CSS-module theme tokens.
+  // Preferred built-in theme mode. Applies MassiveTable's CSS-module theme tokens.
   mode?: 'light' | 'dark';
   style?: React.CSSProperties;
   className?: string;

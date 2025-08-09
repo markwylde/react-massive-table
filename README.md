@@ -25,7 +25,7 @@ npm i react-massive-table
 Minimal, client-side rows from an in-memory array:
 
 ```tsx
-import { Tabletron } from 'react-massive-table'
+import { MassiveTable } from 'react-massive-table'
 
 type Row = { id: number; name: string; value: number }
 const data: Row[] = Array.from({ length: 100_000 }, (_, i) => ({
@@ -46,7 +46,7 @@ function App() {
     total: data.length,
   })
   return (
-    <Tabletron<Row>
+    <MassiveTable<Row>
       getRows={getRows}
       rowCount={data.length}
       columns={columns}
@@ -67,7 +67,7 @@ function App() {
 
 ## API Reference
 
-### `Tabletron<Row>(props)`
+### `MassiveTable<Row>(props)`
 
 #### Required Props
 - `getRows(start, end, req)`: Returns either `Row[]` or `{ rows: Row[]; total: number }`. `req` contains current `sorts`, `groupBy`, and `{ expandedKeys }` for servers that flatten grouped results.
@@ -142,7 +142,7 @@ Built-ins: `mode='light' | 'dark'` set sensible defaults via CSS variables.
 
 **Example**:
 ```tsx
-<Tabletron
+<MassiveTable
   getRows={getRows}
   rowCount={rowCount}
   columns={columns}
@@ -179,4 +179,3 @@ A demo app (`src/App.tsx`) generates deterministic data, showcases grouping, and
 ## License
 
 MIT
-

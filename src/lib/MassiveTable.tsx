@@ -1,4 +1,5 @@
 import * as React from 'react';
+
 import baseStyles from './styles/base.module.css';
 import darkTheme from './styles/dark.module.css';
 import lightTheme from './styles/light.module.css';
@@ -7,8 +8,8 @@ import type {
   GetRowsResult,
   GroupBy,
   GroupState,
+  MassiveTableProps,
   Sort,
-  TabletronProps,
   Theme,
 } from './types';
 import { clamp, getByPath, toPx } from './utils';
@@ -79,7 +80,7 @@ function useColumnOrder<Row>(columns: ColumnDef<Row>[]) {
   return { order, columnsOrdered: cols, move } as const;
 }
 
-export function Tabletron<Row = unknown>(props: TabletronProps<Row>) {
+export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
   const {
     getRows,
     rowCount,
@@ -308,10 +309,10 @@ export function Tabletron<Row = unknown>(props: TabletronProps<Row>) {
     const t = { ...DEFAULT_THEME, ...(theme ?? {}) };
     // Always provide layout-related variables that depend on props
     const layoutVars: React.CSSProperties & Record<string, string> = {
-      '--tabletron-header-h': t.headerHeight ?? '36px',
-      '--tabletron-cell-py': t.cellPxY ?? '8px',
-      '--tabletron-header-cell-py': t.headerCellPy ?? t.cellPxY ?? '8px',
-      '--tabletron-cell-px': t.cellPxX ?? '12px',
+      '--massive-table-header-h': t.headerHeight ?? '36px',
+      '--massive-table-cell-py': t.cellPxY ?? '8px',
+      '--massive-table-header-cell-py': t.headerCellPy ?? t.cellPxY ?? '8px',
+      '--massive-table-cell-px': t.cellPxX ?? '12px',
     };
 
     // If a theme object is provided, opt into setting color/visual variables.
@@ -319,20 +320,20 @@ export function Tabletron<Row = unknown>(props: TabletronProps<Row>) {
     if (theme) {
       return {
         ...layoutVars,
-        '--tabletron-bg': t.bg,
-        '--tabletron-color': t.color,
-        '--tabletron-header-bg': t.headerBg,
-        '--tabletron-header-color': t.headerColor,
-        '--tabletron-row-hover-bg': t.rowHoverBg,
-        '--tabletron-row-hover-color': t.rowHoverColor ?? t.color,
-        '--tabletron-border': t.borderColor,
-        '--tabletron-scrollbar-thumb': t.scrollbarThumb,
-        '--tabletron-scrollbar-track': t.scrollbarTrack,
-        '--tabletron-radius': t.radius ?? '8px',
-        '--tabletron-header-shadow': t.headerShadow ?? 'inset 0 -1px 0 rgba(0,0,0,0.06)',
-        '--tabletron-row-stripe': t.rowStripeBg ?? 'transparent',
-        '--tabletron-focus-ring': t.focusRing ?? '0 0 0 2px rgba(59,130,246,0.65)',
-        '--tabletron-dim-overlay': t.dimOverlay ?? 'rgba(0,0,0,0.1)',
+        '--massive-table-bg': t.bg,
+        '--massive-table-color': t.color,
+        '--massive-table-header-bg': t.headerBg,
+        '--massive-table-header-color': t.headerColor,
+        '--massive-table-row-hover-bg': t.rowHoverBg,
+        '--massive-table-row-hover-color': t.rowHoverColor ?? t.color,
+        '--massive-table-border': t.borderColor,
+        '--massive-table-scrollbar-thumb': t.scrollbarThumb,
+        '--massive-table-scrollbar-track': t.scrollbarTrack,
+        '--massive-table-radius': t.radius ?? '8px',
+        '--massive-table-header-shadow': t.headerShadow ?? 'inset 0 -1px 0 rgba(0,0,0,0.06)',
+        '--massive-table-row-stripe': t.rowStripeBg ?? 'transparent',
+        '--massive-table-focus-ring': t.focusRing ?? '0 0 0 2px rgba(59,130,246,0.65)',
+        '--massive-table-dim-overlay': t.dimOverlay ?? 'rgba(0,0,0,0.1)',
       } as React.CSSProperties & Record<string, string>;
     }
 
@@ -352,11 +353,11 @@ export function Tabletron<Row = unknown>(props: TabletronProps<Row>) {
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', String(idx));
     try {
-      e.dataTransfer.setData('application/x-tabletron-col-idx', String(idx));
+      e.dataTransfer.setData('application/x-massive-table-col-idx', String(idx));
     } catch {}
     try {
       e.dataTransfer.setData(
-        'application/x-tabletron-col-path',
+        'application/x-massive-table-col-path',
         JSON.stringify(columnsOrdered[idx].path),
       );
     } catch {}
@@ -551,8 +552,8 @@ export function Tabletron<Row = unknown>(props: TabletronProps<Row>) {
   const [groupOver, setGroupOver] = React.useState<boolean>(false);
   const onGroupBarDragOver = (e: React.DragEvent) => {
     if (
-      e.dataTransfer.types.includes('application/x-tabletron-col-idx') ||
-      e.dataTransfer.types.includes('application/x-tabletron-group-idx') ||
+      e.dataTransfer.types.includes('application/x-massive-table-col-idx') ||
+      e.dataTransfer.types.includes('application/x-massive-table-group-idx') ||
       e.dataTransfer.types.includes('text/plain')
     ) {
       e.preventDefault();
@@ -574,11 +575,11 @@ export function Tabletron<Row = unknown>(props: TabletronProps<Row>) {
     setGroupOver(false);
     // Mark that a drop occurred within the group bar region
     groupDropInsideRef.current = true;
-    const colPathStr = e.dataTransfer.getData('application/x-tabletron-col-path');
+    const colPathStr = e.dataTransfer.getData('application/x-massive-table-col-path');
     const colIdxStr =
-      e.dataTransfer.getData('application/x-tabletron-col-idx') ||
+      e.dataTransfer.getData('application/x-massive-table-col-idx') ||
       e.dataTransfer.getData('text/plain');
-    const fromGroupStr = e.dataTransfer.getData('application/x-tabletron-group-idx');
+    const fromGroupStr = e.dataTransfer.getData('application/x-massive-table-group-idx');
     if (fromGroupStr) return; // reordering handled continuously during drag
     if (colPathStr) {
       try {
@@ -618,7 +619,7 @@ export function Tabletron<Row = unknown>(props: TabletronProps<Row>) {
   const onGroupChipDragStart = (i: number) => (e: React.DragEvent) => {
     groupDragIndex.current = i;
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('application/x-tabletron-group-idx', String(i));
+    e.dataTransfer.setData('application/x-massive-table-group-idx', String(i));
     // Drag originates inside the group bar; consider pointer over the bar
     setGroupOver(true);
     // Reset drop flag for this drag sequence
@@ -637,14 +638,14 @@ export function Tabletron<Row = unknown>(props: TabletronProps<Row>) {
     if (el) {
       const over = (ev: DragEvent) => {
         const types = Array.from(ev.dataTransfer?.types ?? []);
-        if (types.includes('application/x-tabletron-group-idx')) {
+        if (types.includes('application/x-massive-table-group-idx')) {
           ev.preventDefault();
           if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'move';
         }
       };
       const drop = (ev: DragEvent) => {
         const types = Array.from(ev.dataTransfer?.types ?? []);
-        if (types.includes('application/x-tabletron-group-idx')) {
+        if (types.includes('application/x-massive-table-group-idx')) {
           ev.preventDefault();
         }
       };
@@ -731,9 +732,9 @@ export function Tabletron<Row = unknown>(props: TabletronProps<Row>) {
         // Fallback to header height var until measured
         ...(showGroupByDropZone
           ? groupBarHeight != null
-            ? { ['--tabletron-groupbar-h' as string]: `${groupBarHeight}px` }
+            ? { ['--massive-table-groupbar-h' as string]: `${groupBarHeight}px` }
             : {}
-          : { ['--tabletron-groupbar-h' as string]: '0px' }),
+          : { ['--massive-table-groupbar-h' as string]: '0px' }),
         ...style,
       }}
     >
@@ -877,7 +878,7 @@ export function Tabletron<Row = unknown>(props: TabletronProps<Row>) {
                         <div
                           className={baseStyles.groupRow}
                           style={{
-                            paddingLeft: `calc(var(--tabletron-cell-px) + ${(r.depth ?? 0) * 16}px)`,
+                            paddingLeft: `calc(var(--massive-table-cell-px) + ${(r.depth ?? 0) * 16}px)`,
                           }}
                         >
                           <button
@@ -936,4 +937,4 @@ export function Tabletron<Row = unknown>(props: TabletronProps<Row>) {
   );
 }
 
-export default Tabletron;
+export default MassiveTable;

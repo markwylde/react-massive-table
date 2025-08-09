@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { act } from 'react';
 import * as React from 'react';
-import { Tabletron } from '../src';
+import { MassiveTable } from '../src';
 import type { ColumnDef, GetRowsResult, RowsRequest } from '../src/lib/types';
 
 type Row = { a: number; b: string };
@@ -41,11 +41,11 @@ class MockDataTransfer {
   setDragImage() {}
 }
 
-describe('Tabletron grouping', () => {
+describe('MassiveTable grouping', () => {
   it('adds a group via header -> group bar drop', async () => {
     const getRows = makeGetRowsGrouped();
     render(
-      <Tabletron<Row>
+      <MassiveTable<Row>
         getRows={getRows}
         rowCount={2}
         columns={columns}
@@ -57,7 +57,7 @@ describe('Tabletron grouping', () => {
     const groupBar = screen.getByRole('toolbar', { name: /Group by bar/i });
     const dt = new MockDataTransfer();
     // Include the column path payload
-    dt.setData('application/x-tabletron-col-path', JSON.stringify(['a']));
+    dt.setData('application/x-massive-table-col-path', JSON.stringify(['a']));
     await act(async () => {
       fireEvent.dragStart(headerA, { dataTransfer: dt });
       fireEvent.dragOver(groupBar, { dataTransfer: dt });
@@ -70,7 +70,7 @@ describe('Tabletron grouping', () => {
   it('removes a group when chip drag ends outside', async () => {
     const getRows = makeGetRowsGrouped();
     const { container } = render(
-      <Tabletron<Row>
+      <MassiveTable<Row>
         getRows={getRows}
         rowCount={2}
         columns={columns}
@@ -92,7 +92,7 @@ describe('Tabletron grouping', () => {
   it('toggles group row expand/collapse', async () => {
     const getRows = makeGetRowsGrouped();
     render(
-      <Tabletron<Row>
+      <MassiveTable<Row>
         getRows={getRows}
         rowCount={2}
         columns={columns}

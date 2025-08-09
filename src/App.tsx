@@ -1,6 +1,6 @@
 import Chance from 'chance';
 import * as React from 'react';
-import Tabletron from './lib/Tabletron';
+import MassiveTable from './lib/MassiveTable';
 import type { ColumnDef, ColumnPath, GetRowsResult, RowsRequest, Sort } from './lib/types';
 import { getByPath } from './lib/utils';
 
@@ -51,11 +51,11 @@ const columns: ColumnDef<Row | GroupHeader>[] = [
 
 export default function App() {
   const [mode, setMode] = React.useState<'light' | 'dark'>(
-    () => (localStorage.getItem('tabletron-mode') as 'light' | 'dark') || 'light',
+    () => (localStorage.getItem('massive-table-mode') as 'light' | 'dark') || 'light',
   );
   React.useEffect(() => {
     try {
-      localStorage.setItem('tabletron-mode', mode);
+      localStorage.setItem('massive-table-mode', mode);
     } catch {}
   }, [mode]);
   // Build demo data in-memory (deterministic via Chance + SEED)
@@ -188,7 +188,7 @@ export default function App() {
   // Storybook-like example registry
   type Variant = {
     name: string;
-    props: Partial<React.ComponentProps<typeof Tabletron<Row | GroupHeader>>>;
+    props: Partial<React.ComponentProps<typeof MassiveTable<Row | GroupHeader>>>;
     note?: string;
   };
   type Example = { key: string; title: string; variants: Variant[] };
@@ -326,7 +326,7 @@ export default function App() {
         }}
       >
         <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-          <h1 style={{ margin: 0, fontSize: 18 }}>Tabletron Examples</h1>
+          <h1 style={{ margin: 0, fontSize: 18 }}>MassiveTable Examples</h1>
           {activeExample.key === 'reorder' && (
             <span style={{ color: '#555' }}>
               {previewOrder
@@ -454,7 +454,7 @@ export default function App() {
               {activeVariant.note ? ` — ${activeVariant.note}` : ''}
             </p>
           </div>
-          <Tabletron<Row | GroupHeader>
+          <MassiveTable<Row | GroupHeader>
             key={`${activeExample.key}:${activeVariantIndex}`}
             getRows={getRows}
             rowCount={rowCount}

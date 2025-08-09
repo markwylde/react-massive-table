@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { act } from 'react';
 import * as React from 'react';
-import { Tabletron } from '../src';
+import { MassiveTable } from '../src';
 import type { ColumnDef, GetRowsResult, RowsRequest } from '../src/lib/types';
 
 type Row = { a: number; b: string };
@@ -37,13 +37,13 @@ class MockDataTransfer {
   setDragImage() {}
 }
 
-describe('Tabletron reorder & resize', () => {
+describe('MassiveTable reorder & resize', () => {
   it('reorders columns via drag and notifies preview/final', async () => {
     const getRows = makeGetRows();
     const onPreview = vi.fn();
     const onFinal = vi.fn();
     render(
-      <Tabletron<Row>
+      <MassiveTable<Row>
         getRows={getRows}
         rowCount={10}
         columns={columns}
@@ -76,7 +76,7 @@ describe('Tabletron reorder & resize', () => {
   it('resizes a column via grip drag', async () => {
     const getRows = makeGetRows();
     const { container } = render(
-      <Tabletron<Row>
+      <MassiveTable<Row>
         getRows={getRows}
         rowCount={10}
         columns={columns}

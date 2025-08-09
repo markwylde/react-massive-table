@@ -1,15 +1,15 @@
 /* Base structural styles and tokens using CSS variables */
 .root {
-  --tabletron-radius: var(--tabletron-radius, 10px);
-  --tabletron-header-h: var(--tabletron-header-h, 36px);
-  --tabletron-cell-px: var(--tabletron-cell-px, 10px);
-  --tabletron-cell-py: var(--tabletron-cell-py, 6px);
-  --tabletron-header-cell-py: var(--tabletron-header-cell-py, 4px);
+  --massive-table-radius: var(--massive-table-radius, 10px);
+  --massive-table-header-h: var(--massive-table-header-h, 36px);
+  --massive-table-cell-px: var(--massive-table-cell-px, 10px);
+  --massive-table-cell-py: var(--massive-table-cell-py, 6px);
+  --massive-table-header-cell-py: var(--massive-table-header-cell-py, 4px);
 
-  background: var(--tabletron-bg);
-  color: var(--tabletron-color);
-  border: 1px solid var(--tabletron-border);
-  border-radius: var(--tabletron-radius);
+  background: var(--massive-table-bg);
+  color: var(--massive-table-color);
+  border: 1px solid var(--massive-table-border);
+  border-radius: var(--massive-table-radius);
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -35,7 +35,7 @@
   overflow: auto;
   height: 100%;
   contain: content;
-  background: var(--tabletron-bg);
+  background: var(--massive-table-bg);
 }
 
 /* Scrollbar polish */
@@ -44,11 +44,11 @@
   width: 10px;
 }
 .viewport::-webkit-scrollbar-thumb {
-  background: var(--tabletron-scrollbar-thumb);
+  background: var(--massive-table-scrollbar-thumb);
   border-radius: 999px;
 }
 .viewport::-webkit-scrollbar-track {
-  background: var(--tabletron-scrollbar-track);
+  background: var(--massive-table-scrollbar-track);
 }
 
 /* Group bar */
@@ -59,15 +59,15 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: calc(var(--tabletron-header-h));
-  padding: var(--tabletron-header-cell-py) var(--tabletron-cell-px);
-  background: var(--tabletron-header-bg);
-  color: var(--tabletron-header-color);
-  border-bottom: 1px solid var(--tabletron-border);
-  box-shadow: var(--tabletron-header-shadow);
+  min-height: calc(var(--massive-table-header-h));
+  padding: var(--massive-table-header-cell-py) var(--massive-table-cell-px);
+  background: var(--massive-table-header-bg);
+  color: var(--massive-table-header-color);
+  border-bottom: 1px solid var(--massive-table-border);
+  box-shadow: var(--massive-table-header-shadow);
 }
 .groupBarOver {
-  outline: 2px dashed var(--tabletron-border);
+  outline: 2px dashed var(--massive-table-border);
   outline-offset: -4px;
 }
 .groupLabel {
@@ -80,7 +80,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid var(--tabletron-border);
+  border: 1px solid var(--massive-table-border);
   background: transparent;
   color: inherit;
   border-radius: 999px;
@@ -106,27 +106,27 @@
 /* Header */
 .header {
   position: sticky;
-  top: var(--tabletron-groupbar-h, var(--tabletron-header-h));
+  top: var(--massive-table-groupbar-h, var(--massive-table-header-h));
   z-index: 2;
   display: grid;
   align-items: center;
-  background: var(--tabletron-header-bg);
-  color: var(--tabletron-header-color);
-  min-height: var(--tabletron-header-h);
-  border-bottom: 1px solid var(--tabletron-border);
-  box-shadow: var(--tabletron-header-shadow);
+  background: var(--massive-table-header-bg);
+  color: var(--massive-table-header-color);
+  min-height: var(--massive-table-header-h);
+  border-bottom: 1px solid var(--massive-table-border);
+  box-shadow: var(--massive-table-header-shadow);
 }
 
 .headerCell {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: var(--tabletron-header-cell-py) var(--tabletron-cell-px);
+  padding: var(--massive-table-header-cell-py) var(--massive-table-cell-px);
   border: 0;
   background: transparent;
   color: inherit;
   text-align: left;
-  border-right: 1px solid var(--tabletron-border);
+  border-right: 1px solid var(--massive-table-border);
   white-space: nowrap;
   user-select: none;
   position: relative;
@@ -142,7 +142,7 @@
 }
 .headerCell:focus-visible {
   outline: none;
-  box-shadow: var(--tabletron-focus-ring);
+  box-shadow: var(--massive-table-focus-ring);
 }
 .headerTitle {
   flex: 1 1 auto;
@@ -183,7 +183,7 @@
   left: 50%;
   transform: translateX(-50%);
   width: 1px;
-  background: var(--tabletron-border);
+  background: var(--massive-table-border);
 }
 
 /* Rows */
@@ -197,32 +197,32 @@
   right: 0;
   display: grid;
   align-items: center;
-  background: var(--tabletron-bg);
-  color: var(--tabletron-color);
+  background: var(--massive-table-bg);
+  color: var(--massive-table-color);
   border: 0;
-  border-bottom: 1px solid var(--tabletron-border);
-  padding: var(--tabletron-cell-py) 0;
+  border-bottom: 1px solid var(--massive-table-border);
+  padding: var(--massive-table-cell-py) 0;
   text-align: left;
 }
 .row:nth-child(even) {
-  background: var(--tabletron-row-stripe);
+  background: var(--massive-table-row-stripe);
 }
 .row:hover {
-  background: var(--tabletron-row-hover-bg);
-  color: var(--tabletron-row-hover-color);
+  background: var(--massive-table-row-hover-bg);
+  color: var(--massive-table-row-hover-color);
 }
 .row:focus-visible {
   outline: none;
-  box-shadow: var(--tabletron-focus-ring);
+  box-shadow: var(--massive-table-focus-ring);
 }
 
 /* Allow theme to enforce a measurement height via CSS */
 .rows > .row {
-  min-height: var(--tabletron-first-row-min-h, auto);
+  min-height: var(--massive-table-first-row-min-h, auto);
 }
 
 .cell {
-  padding: 0 var(--tabletron-cell-px);
+  padding: 0 var(--massive-table-cell-px);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -233,11 +233,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 var(--tabletron-cell-px);
+  padding: 0 var(--massive-table-cell-px);
   font-weight: 600;
 }
 .groupToggle {
-  border: 1px solid var(--tabletron-border);
+  border: 1px solid var(--massive-table-border);
   background: transparent;
   color: inherit;
   border-radius: 6px;
