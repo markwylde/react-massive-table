@@ -109,7 +109,11 @@ export default function App() {
   const sortedCacheRef = React.useRef<Map<string, Row[]>>(new Map());
   const groupedCacheRef = React.useRef<Map<string, (Row | GroupHeader)[]>>(new Map());
   const getRows = React.useCallback(
-    (start: number, end: number, req?: RowsRequest<Row>): GetRowsResult<Row | GroupHeader> => {
+    (
+      start: number,
+      end: number,
+      req?: RowsRequest<Row | GroupHeader>,
+    ): GetRowsResult<Row | GroupHeader> => {
       const len = Math.max(0, end - start);
       const sorts = req?.sorts ?? [];
       const groupBy = req?.groupBy ?? [];
@@ -407,7 +411,7 @@ export default function App() {
   // Storybook-like example registry
   type Variant = {
     name: string;
-    props: Partial<React.ComponentProps<typeof MassiveTable<unknown>>>;
+    props: Partial<React.ComponentProps<typeof MassiveTable<Row | GroupHeader>>>;
     note?: string;
   };
   type Example = { key: string; title: string; variants: Variant[] };

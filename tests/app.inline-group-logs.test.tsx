@@ -46,20 +46,20 @@ describe('App Logs inline-group example', () => {
   it('respects sort order when expanded (asc yields rising spans beneath anchor)', async () => {
     // Navigate to the Index Asc variant
     window.location.hash = '#/logs/1';
-    render(<App />);
+    const { container } = render(<App />);
     await screen.findByRole('button', { name: 'Trace ID' });
 
-    // Expand the first anchor in asc
-    const expandButtons = await screen.findAllByRole('button', { name: 'Expand trace' });
+    // Click expand on a specific trace anchor to avoid ambiguity.
+    // Choose trace 1111111 and its anchor message (Span 1 of 5...) in asc variant.
+    const anchorMsg = await screen.findByText('Span 1 of 5 for trace 1111111');
+    const rowEl = anchorMsg.closest('[role="button"]') as HTMLElement;
+    const expander = within(rowEl).getByRole('button', { name: 'Expand trace' });
     await act(async () => {
-      fireEvent.click(expandButtons[0]);
+      fireEvent.click(expander);
     });
 
-    // All 5 spans for that trace visible in ascending order
-    // We don't know which trace is first by label without reading data; assert either works.
-    const spans111 = screen.queryAllByText(/for trace 1111111/);
-    const spans222 = screen.queryAllByText(/for trace 2222222/);
-    const spans = spans111.length === 5 ? spans111 : spans222;
+    // Now all 5 spans for this trace should be visible in ascending order
+    const spans = await screen.findAllByText(/for trace 1111111/);
     expect(spans.length).toBe(5);
     const txt = spans.map((n) => n.textContent || '');
     // Expect Span 1,2,3,4,5 ascending beneath the anchor
