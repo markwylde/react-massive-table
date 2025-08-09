@@ -96,11 +96,11 @@ export function Tabletron<Row = unknown>(props: TabletronProps<Row>) {
     onColumnOrderChange,
     onRowClick,
     classes: _classes,
-    // Feature toggles
-    enableSort = true,
-    enableReorder = true,
-    enableResize = true,
-    showGroupByDropZone = true,
+    // Feature toggles (default off)
+    enableSort = false,
+    enableReorder = false,
+    enableResize = false,
+    showGroupByDropZone = false,
     // Controlled/uncontrolled state + events
     sorts: sortsProp,
     defaultSorts,
@@ -784,11 +784,13 @@ export function Tabletron<Row = unknown>(props: TabletronProps<Row>) {
           {columnsOrdered.map((col, i) => {
             const sortIdx = sorts.findIndex((s) => pathEq(s.path, col.path));
             const sortDir = sortIdx >= 0 ? sorts[sortIdx].dir : null;
+            const draggableFor = enableReorder || showGroupByDropZone;
+            const clickableForSort = enableSort && !draggableFor;
             return (
               <button
                 key={order[i]}
                 title={col.headerTooltip}
-                draggable={enableReorder || showGroupByDropZone}
+                draggable={draggableFor}
                 onClick={() => toggleSortForColumnIndex(i)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -801,7 +803,11 @@ export function Tabletron<Row = unknown>(props: TabletronProps<Row>) {
                 onDrop={handleHeaderDrop(i)}
                 onDragEnd={handleHeaderDragEnd}
                 type="button"
-                className={baseStyles.headerCell}
+                className={cn(
+                  baseStyles.headerCell,
+                  draggableFor && baseStyles.headerCellGrab,
+                  clickableForSort && baseStyles.headerCellClickable,
+                )}
               >
                 <span className={baseStyles.headerTitle}>{col.title}</span>
                 {sortDir && (
