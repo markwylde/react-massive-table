@@ -49,6 +49,50 @@ const columns: ColumnDef<Row | GroupHeader>[] = [
   { path: ['firstName'], title: 'First Name' },
 ];
 
+// Inline-group logs example types and data
+type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+type LogRow = {
+  id: number; // unique id
+  ts: number; // timestamp (ms)
+  level: LogLevel;
+  message: string;
+  trace_id: string | null;
+  // for demo table columns
+  index: number;
+};
+
+type LogRowWithMeta = LogRow & {
+  __inlineGroupKey?: string;
+  __inlineGroupAnchor?: boolean;
+  __inlineGroupMember?: boolean;
+  __inlineGroupExpanded?: boolean;
+  __inlineGroupSize?: number;
+};
+
+// Helper to build demo logs dataset: 20 normal logs, 5 + 5 spans across 2 traces
+function buildLogs(): LogRow[] {
+  const base = Date.now() - 1000 * 60 * 60; // 1h ago
+  const total = 30;
+  const traceAidx = [3, 6, 12, 18, 24];
+  const traceBidx = [5, 11, 15, 21, 27];
+  const levels: LogLevel[] = ['DEBUG', 'INFO', 'WARN', 'ERROR'];
+  const rows: LogRow[] = [];
+  let id = 1;
+  for (let i = 0; i < total; i++) {
+    const ts = base + i * 60_000; // each minute
+    let trace: string | null = null;
+    if (traceAidx.includes(i)) trace = '1111111';
+    else if (traceBidx.includes(i)) trace = '2222222';
+
+    const level = levels[i % levels.length];
+    const message = trace
+      ? `Span ${trace === '1111111' ? traceAidx.indexOf(i) + 1 : traceBidx.indexOf(i) + 1} of 5 for trace ${trace}`
+      : `Log message ${i + 1}`;
+    rows.push({ id: id++, ts, level, message, trace_id: trace, index: i + 1 });
+  }
+  return rows;
+}
+
 export default function App() {
   const [mode, setMode] = React.useState<'light' | 'dark'>(
     () => (localStorage.getItem('massive-table-mode') as 'light' | 'dark') || 'light',
@@ -65,7 +109,11 @@ export default function App() {
   const sortedCacheRef = React.useRef<Map<string, Row[]>>(new Map());
   const groupedCacheRef = React.useRef<Map<string, (Row | GroupHeader)[]>>(new Map());
   const getRows = React.useCallback(
-    (start: number, end: number, req?: RowsRequest<Row>): GetRowsResult<Row | GroupHeader> => {
+    (
+      start: number,
+      end: number,
+      req?: RowsRequest<Row | GroupHeader>,
+    ): GetRowsResult<Row | GroupHeader> => {
       const len = Math.max(0, end - start);
       const sorts = req?.sorts ?? [];
       const groupBy = req?.groupBy ?? [];
@@ -185,6 +233,181 @@ export default function App() {
     [data],
   );
 
+  // ------------------------
+  // Logs inline-group example
+  // ------------------------
+  const logsData = React.useMemo(() => buildLogs(), []);
+  const [logsExpandedKeys, setLogsExpandedKeys] = React.useState<string[]>([]);
+
+  // generic compare using sorts; nulls last
+  const makeComparator = React.useCallback(
+    <T extends object>(sorts: Sort<T>[]) =>
+      (a: T, b: T) => {
+        for (const s of sorts) {
+          const va = getByPath(a as unknown as Record<string, unknown>, s.path);
+          const vb = getByPath(b as unknown as Record<string, unknown>, s.path);
+          if (va == null && vb == null) continue;
+          if (va == null) return s.dir === 'asc' ? 1 : -1;
+          if (vb == null) return s.dir === 'asc' ? -1 : 1;
+          let d = 0;
+          if (typeof va === 'number' && typeof vb === 'number') d = va - vb;
+          else {
+            const sa = String(va).toLocaleString();
+            const sb = String(vb).toLocaleString();
+            d = sa < sb ? -1 : sa > sb ? 1 : 0;
+          }
+          if (d !== 0) return s.dir === 'asc' ? d : -d;
+        }
+        return 0;
+      },
+    [],
+  );
+
+  type AnyRow = Record<string, unknown> & { trace_id?: string | null; ts?: number };
+  const getRowsLogs = React.useCallback(
+    (start: number, end: number, req?: RowsRequest<AnyRow>): GetRowsResult<AnyRow> => {
+      const sorts = (req?.sorts as Sort<AnyRow>[]) ?? [];
+      // default to index desc (visible column) if no sorts
+      const effectiveSorts =
+        sorts.length > 0 ? sorts : ([{ path: ['index'], dir: 'desc' }] as Sort<AnyRow>[]);
+      const cmp = makeComparator<AnyRow>(effectiveSorts);
+
+      // Sort base data per user sorts
+      const sorted = logsData
+        .map((r) => r as AnyRow)
+        .slice()
+        .sort(cmp);
+
+      // Build trace groups by trace_id (non-null) in the current sorted order
+      const byTrace = new Map<string, AnyRow[]>();
+      for (const r of sorted) {
+        const tid = r.trace_id as string | null;
+        if (tid) {
+          const arr = byTrace.get(tid) ?? [];
+          arr.push(r);
+          byTrace.set(tid, arr);
+        }
+      }
+
+      // Compute units: either a non-trace row unit, or a trace block unit positioned by earliest ts
+      type Unit =
+        | { kind: 'row'; row: AnyRow }
+        | { kind: 'trace'; id: string; rows: AnyRow[]; anchor: AnyRow };
+      const usedInTrace = new Set<AnyRow>();
+      const traceUnits: Unit[] = [];
+      for (const [id, rows] of byTrace.entries()) {
+        // Anchor at the first occurrence in the current sort (Option A)
+        const anchor = rows[0];
+        traceUnits.push({ kind: 'trace', id, rows, anchor });
+        for (const r of rows) usedInTrace.add(r);
+      }
+      const rowUnits: Unit[] = sorted
+        .filter((r) => !usedInTrace.has(r))
+        .map((r) => ({ kind: 'row', row: r }));
+
+      // Merge units and sort using user sorts applied to the anchor/row values
+      const units = [...rowUnits, ...traceUnits];
+      const unitCmp = (ua: Unit, ub: Unit) => {
+        const a = ua.kind === 'trace' ? ua.anchor : ua.row;
+        const b = ub.kind === 'trace' ? ub.anchor : ub.row;
+        return cmp(a, b);
+      };
+      units.sort(unitCmp);
+
+      // Flatten, collapsing/expanding trace units according to expanded keys
+      const expandedSet = new Set(req?.groupState?.expandedKeys ?? logsExpandedKeys);
+      const out: AnyRow[] = [];
+      for (const u of units) {
+        if (u.kind === 'row') {
+          out.push(u.row);
+        } else {
+          const key = `trace:${u.id}`;
+          const isExpanded = expandedSet.has(key);
+          if (isExpanded) {
+            // Output all rows (already in user-sorted order). Keep the anchor row clickable.
+            for (const r of u.rows) {
+              out.push({
+                ...r,
+                __inlineGroupKey: key,
+                __inlineGroupMember: r !== u.anchor,
+                __inlineGroupAnchor: r === u.anchor,
+                __inlineGroupExpanded: true,
+                __inlineGroupSize: u.rows.length,
+              });
+            }
+          } else {
+            // Output only the anchor row, mark it as anchor
+            out.push({
+              ...u.anchor,
+              __inlineGroupKey: key,
+              __inlineGroupAnchor: true,
+              __inlineGroupSize: u.rows.length,
+            });
+          }
+        }
+      }
+
+      const len = Math.max(0, end - start);
+      return { rows: out.slice(start, start + len), total: out.length };
+    },
+    [logsData, logsExpandedKeys, makeComparator],
+  );
+
+  // Columns for logs example
+  const logsColumns: ColumnDef<LogRowWithMeta>[] = React.useMemo(() => {
+    const renderIndex: ColumnDef<LogRowWithMeta>['render'] = (_v, row: LogRowWithMeta) => {
+      // Row might be undefined while data is loading; treat metadata as optional
+      const meta = (row ?? ({} as LogRowWithMeta)) as Partial<LogRowWithMeta>;
+      const key: string | undefined = meta.__inlineGroupKey;
+      const isAnchor = !!meta.__inlineGroupAnchor;
+      const isMember = !!meta.__inlineGroupMember;
+      const expanded = key ? logsExpandedKeys.includes(key) : false;
+      const toggle = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!key) return;
+        setLogsExpandedKeys((prev) => {
+          const s = new Set(prev);
+          if (s.has(key)) s.delete(key);
+          else s.add(key);
+          return Array.from(s);
+        });
+      };
+      const arrow = isAnchor ? (expanded ? '▾' : '▸') : isMember ? '·' : '';
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          {isAnchor ? (
+            <button
+              onClick={toggle}
+              aria-label={expanded ? 'Collapse trace' : 'Expand trace'}
+              type="button"
+              style={{
+                width: 18,
+                height: 18,
+                border: '1px solid var(--massive-table-border)',
+                background: 'transparent',
+                borderRadius: 4,
+                fontSize: 11,
+                lineHeight: '16px',
+                padding: 0,
+              }}
+            >
+              {arrow}
+            </button>
+          ) : (
+            <span style={{ width: 18, display: 'inline-block' }}>{arrow}</span>
+          )}
+          <span>{String((row as LogRowWithMeta | undefined)?.index ?? '')}</span>
+        </span>
+      );
+    };
+    return [
+      { path: ['index'], title: '#', width: 80, render: renderIndex },
+      { path: ['level'], title: 'Level', width: 200 },
+      { path: ['message'], title: 'Message' },
+      { path: ['trace_id'], title: 'Trace ID', inlineGroup: true },
+    ];
+  }, [logsExpandedKeys]);
+
   // Storybook-like example registry
   type Variant = {
     name: string;
@@ -203,6 +426,46 @@ export default function App() {
             name: 'Basic Table',
             props: {}, // rely on component defaults (all features off)
             note: 'No sort, no reorder, no resize, no group bar.',
+          },
+        ],
+      },
+      {
+        key: 'logs',
+        title: 'Logs (inline group)',
+        variants: [
+          {
+            name: 'Trace collapse/expand by Trace ID',
+            props: {
+              columns: logsColumns as unknown as ColumnDef<Row | GroupHeader>[],
+              getRows: getRowsLogs as unknown as (
+                start: number,
+                end: number,
+                req?: RowsRequest<Row | GroupHeader>,
+              ) => GetRowsResult<Row | GroupHeader>,
+              rowCount: logsData.length,
+              enableSort: true,
+              defaultSorts: [{ path: ['index'], dir: 'desc' }] as unknown as Sort[],
+              expandedKeys: logsExpandedKeys,
+              onExpandedKeysChange: setLogsExpandedKeys,
+            },
+            note: '30 logs; traces inlined under the first occurrence.',
+          },
+          {
+            name: 'Inline group + Index Asc',
+            props: {
+              columns: logsColumns as unknown as ColumnDef<Row | GroupHeader>[],
+              getRows: getRowsLogs as unknown as (
+                start: number,
+                end: number,
+                req?: RowsRequest<Row | GroupHeader>,
+              ) => GetRowsResult<Row | GroupHeader>,
+              rowCount: logsData.length,
+              enableSort: true,
+              defaultSorts: [{ path: ['index'], dir: 'asc' }] as unknown as Sort[],
+              expandedKeys: logsExpandedKeys,
+              onExpandedKeysChange: setLogsExpandedKeys,
+            },
+            note: 'Same data but sorted by index ascending by default.',
           },
         ],
       },
@@ -266,7 +529,7 @@ export default function App() {
         ],
       },
     ],
-    [],
+    [logsColumns, getRowsLogs, logsData.length, logsExpandedKeys],
   );
 
   // Basic hash router: #/exampleKey or #/exampleKey/variantIndex

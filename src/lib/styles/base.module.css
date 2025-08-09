@@ -211,6 +211,10 @@
   background: var(--massive-table-row-hover-bg);
   color: var(--massive-table-row-hover-color);
 }
+.row.inlineGroupMember {
+  /* Slightly darker background to indicate expanded child rows */
+  background: var(--massive-table-row-hover-bg);
+}
 .row:focus-visible {
   outline: none;
   box-shadow: var(--massive-table-focus-ring);
