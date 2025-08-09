@@ -8,62 +8,6 @@ import MassiveTable from './lib/MassiveTable';
 import type { ColumnDef, ColumnPath, GetRowsResult, RowsRequest, Sort } from './lib/types';
 import { getByPath } from './lib/utils';
 
-// Tiny, dependency-free TS/TSX highlighter for demo snippets
-function escapeHtml(s: string) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-function _highlightTSX(code: string): string {
-  const src = escapeHtml(code);
-  // Order matters: comments -> strings -> template -> numbers -> keywords -> types -> functions -> operators
-  const patterns = [
-    // block comments
-    { re: /\/\*[\s\S]*?\*\//g, cls: 'tok-com' },
-    // line comments
-    { re: /(^|\s)(\/\/.*)$/gm, cls: 'tok-com', group: 2 },
-    // template strings (simple)
-    { re: /`(?:\\[\s\S]|[^\\`])*`/g, cls: 'tok-str' },
-    // strings
-    { re: /'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"/g, cls: 'tok-str' },
-    // numbers
-    { re: /\b\d+(?:_\d+)*(?:\.?\d+)?\b/g, cls: 'tok-num' },
-    // keywords (TS/JS common)
-    {
-      re: /\b(abstract|any|as|asserts|async|await|break|case|catch|class|const|continue|default|delete|do|else|enum|export|extends|false|finally|for|from|function|get|if|implements|import|in|infer|instanceof|interface|is|keyof|let|new|null|of|private|protected|public|readonly|return|set|static|super|switch|this|throw|true|try|type|typeof|undefined|unknown|var|void|while|with|yield)\b/g,
-      cls: 'tok-kw',
-    },
-    // types (very lightweight: capitalized identifiers and generics)
-    { re: /\b[A-Z][A-Za-z0-9_]*\b/g, cls: 'tok-typ' },
-    // function names after 'function' or const foo = () =>
-    { re: /\bfunction\s+([a-zA-Z_][\w]*)/g, cls: 'tok-fn', group: 1 },
-    // operators/punctuation
-    { re: /[{}()[\].,;:<>/*+=!&|?-]/g, cls: 'tok-op' },
-  ];
-  // Apply patterns without re-highlighting inserted spans: split with a global regex pass
-  // We’ll iterate characters and replace using a combined regex alternation built from patterns.
-  // For simplicity, we run sequential replacements on the escaped source while avoiding matching within spans.
-  let out = src;
-  for (const p of patterns) {
-    out = out.replace(p.re, (m: string, ...rest: unknown[]) => {
-      const idx =
-        typeof p.group === 'number' ? (rest[p.group - 1] as string | undefined) : undefined;
-      if (idx) {
-        // Replace only the group; keep full match intact
-        const full = m;
-        const groupText = idx;
-        const start = full.indexOf(groupText);
-        if (start >= 0) {
-          const before = full.slice(0, start);
-          const after = full.slice(start + groupText.length);
-          return `${before}<span class="${p.cls}">${groupText}</span>${after}`;
-        }
-        return `<span class="${p.cls}">${m}</span>`;
-      }
-      return `<span class="${p.cls}">${m}</span>`;
-    });
-  }
-  return out;
-}
-
 type Row = {
   index: number;
   firstName: string;
@@ -455,59 +399,15 @@ export default function App() {
   );
 
   // Columns for logs example
-  const logsColumns: ColumnDef<LogRowWithMeta>[] = React.useMemo(() => {
-    const renderIndex: ColumnDef<LogRowWithMeta>['render'] = (_v, row: LogRowWithMeta) => {
-      // Row might be undefined while data is loading; treat metadata as optional
-      const meta = (row ?? ({} as LogRowWithMeta)) as Partial<LogRowWithMeta>;
-      const key: string | undefined = meta.__inlineGroupKey;
-      const isAnchor = !!meta.__inlineGroupAnchor;
-      const isMember = !!meta.__inlineGroupMember;
-      const expanded = key ? logsExpandedKeys.includes(key) : false;
-      const toggle = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (!key) return;
-        setLogsExpandedKeys((prev) => {
-          const s = new Set(prev);
-          if (s.has(key)) s.delete(key);
-          else s.add(key);
-          return Array.from(s);
-        });
-      };
-      const arrow = isAnchor ? (expanded ? '▾' : '▸') : isMember ? '·' : '';
-      return (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          {isAnchor ? (
-            <button
-              onClick={toggle}
-              aria-label={expanded ? 'Collapse trace' : 'Expand trace'}
-              type="button"
-              style={{
-                width: 18,
-                height: 18,
-                border: '1px solid var(--massive-table-border)',
-                background: 'transparent',
-                borderRadius: 4,
-                fontSize: 11,
-                lineHeight: '16px',
-                padding: 0,
-              }}
-            >
-              {arrow}
-            </button>
-          ) : (
-            <span style={{ width: 18, display: 'inline-block' }}>{arrow}</span>
-          )}
-          <span>{String((row as LogRowWithMeta | undefined)?.index ?? '')}</span>
-        </span>
-      );
-    };
-    return [
-      { path: ['index'], title: '#', width: 80, render: renderIndex },
+  const logsColumns: ColumnDef<LogRowWithMeta>[] = React.useMemo(
+    () => [
+      { path: ['index'], title: '#', width: 80 },
       { path: ['level'], title: 'Level', width: 200 },
       { path: ['message'], title: 'Message' },
       { path: ['trace_id'], title: 'Trace ID', inlineGroup: true },
-    ];
-  }, [logsExpandedKeys]);
+    ],
+    [],
+  );
 
   // Storybook-like example registry
   type Variant = {
@@ -567,6 +467,62 @@ export default function App() {
               onExpandedKeysChange: setLogsExpandedKeys,
             },
             note: 'Same data but sorted by index ascending by default.',
+          },
+        ],
+      },
+      {
+        key: 'custom',
+        title: 'Custom Render',
+        variants: [
+          {
+            name: 'Red pill cell',
+            props: {
+              columns: (() => {
+                const pillColumns: ColumnDef<Row | GroupHeader>[] = columns.map((c) => ({ ...c }));
+                // Add a render override to show a red pill for a specific cell
+                const idx = pillColumns.findIndex(
+                  (c) => JSON.stringify(c.path) === JSON.stringify(['favourites', 'number']),
+                );
+                if (idx >= 0) {
+                  pillColumns[idx] = {
+                    ...pillColumns[idx],
+                    render: (v: unknown, row: Row | GroupHeader, rowIndex: number) => {
+                      const isGroupHeader = (r: Row | GroupHeader): r is GroupHeader =>
+                        '__group' in r;
+                      // Only decorate one specific cell in this demo: rowIndex === 10
+                      if (rowIndex === 10 && row && !isGroupHeader(row) && typeof v === 'number') {
+                        return (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 6,
+                            }}
+                          >
+                            <span
+                              style={{
+                                background: '#fee2e2',
+                                color: '#991b1b',
+                                borderRadius: 999,
+                                padding: '2px 8px',
+                                fontWeight: 600,
+                                fontSize: 12,
+                              }}
+                            >
+                              {String(v)}
+                            </span>
+                          </span>
+                        );
+                      }
+                      // default rendering
+                      return String(v ?? '');
+                    },
+                  } as ColumnDef<Row | GroupHeader>;
+                }
+                return pillColumns;
+              })() as ColumnDef<Row | GroupHeader>[],
+            },
+            note: 'Shows a red pill for one specific cell using a column render override.',
           },
         ],
       },
