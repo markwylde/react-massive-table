@@ -167,17 +167,23 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
     },
     [isExpandedControlled, expandedKeys, onExpandedKeysChange],
   );
+  // Signature of grouping keys (paths only) — excludes expanded state
+  const groupPathsSig = React.useMemo(
+    () => groupBy.map((g) => JSON.stringify(g.path)).join('|'),
+    [groupBy],
+  );
+  // Full signature including expanded keys, used for data fetching/cache
   const groupSig = React.useMemo(() => {
-    const gb = groupBy.map((g) => JSON.stringify(g.path)).join('|');
     const ex = Array.from(expandedSet).sort().join('|');
-    return `${gb}::${ex}`;
-  }, [groupBy, expandedSet]);
+    return `${groupPathsSig}::${ex}`;
+  }, [groupPathsSig, expandedSet]);
 
   const { cache, setRange: setCacheRange } = useRowCache<Row>(
     effectiveRowCount,
     `${sortsSig}|${groupSig}`,
   );
   const { columnsOrdered, order, move } = useColumnOrder(columns);
+  const hasInlineGroup = React.useMemo(() => columns.some((c) => !!c.inlineGroup), [columns]);
 
   // To avoid browser max scroll height limits (~16.7M px in some engines),
   // we chunk the scrollable canvas and keep a base offset we subtract from
@@ -302,8 +308,15 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
   }, [effectiveRowCount, rowH]);
 
   // Build grid columns template based on widths
-  const gridTemplate = React.useMemo(() => colWidths.map((w) => `${w}px`).join(' '), [colWidths]);
-  const totalWidth = React.useMemo(() => colWidths.reduce((a, b) => a + b, 0), [colWidths]);
+  const inlineColWidth = 28; // px for dedicated inline-group toggle column when present
+  const gridTemplate = React.useMemo(() => {
+    const widths = hasInlineGroup ? [inlineColWidth, ...colWidths] : colWidths;
+    return widths.map((w) => `${w}px`).join(' ');
+  }, [colWidths, hasInlineGroup]);
+  const totalWidth = React.useMemo(() => {
+    const base = colWidths.reduce((a, b) => a + b, 0);
+    return hasInlineGroup ? base + inlineColWidth : base;
+  }, [colWidths, hasInlineGroup]);
 
   const themeVars = React.useMemo(() => {
     const t = { ...DEFAULT_THEME, ...(theme ?? {}) };
@@ -462,10 +475,11 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
 
   // Measure the first row's natural height
   const firstRowRef = React.useRef<HTMLDivElement | null>(null);
-  // Reset measured height when table structure changes
+  // Reset measured height when table structure changes (sorts/group-by paths),
+  // but NOT on expand/collapse to avoid flashing reflows.
   React.useEffect(() => {
     setMeasuredRowHeight(null);
-  }, [sortsSig, groupSig]);
+  }, [sortsSig, groupPathsSig]);
 
   React.useLayoutEffect(() => {
     if (measuredRowHeight !== null) return; // Already measured
@@ -781,6 +795,9 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
           className={baseStyles.header}
           style={{ gridTemplateColumns: gridTemplate, width: totalWidth }}
         >
+          {hasInlineGroup && (
+            <div key="__inline-toggle" className={baseStyles.headerCell} aria-hidden />
+          )}
           {columnsOrdered.map((col, i) => {
             const sortIdx = sorts.findIndex((s) => pathEq(s.path, col.path));
             const sortDir = sortIdx >= 0 ? sorts[sortIdx].dir : null;
@@ -919,7 +936,99 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
                         </div>
                       );
                     }
-                    return columnsOrdered.map((col, ci) => {
+                    // Optional leading inline-group toggle column
+                    const meta = (row ?? ({} as unknown)) as {
+                      __inlineGroupKey?: string;
+                      __inlineGroupAnchor?: boolean;
+                      __inlineGroupMember?: boolean;
+                      __inlineGroupExpanded?: boolean;
+                    };
+
+                    const inlineCell = hasInlineGroup ? (
+                      <div
+                        key={`${rowIndex}:-1`}
+                        className={baseStyles.cell}
+                        style={{
+                          padding: 0,
+                          margin: 'calc(var(--massive-table-cell-py) * -1) 0',
+                          height: 'calc(100% + var(--massive-table-cell-py) * 2)',
+                        }}
+                      >
+                        {row == null ? (
+                          <span
+                            style={{
+                              opacity: 0.4,
+                              padding: '0 var(--massive-table-cell-px)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              height: '100%',
+                            }}
+                          >
+                            …
+                          </span>
+                        ) : (
+                          (() => {
+                            const key = meta.__inlineGroupKey;
+                            const isAnchor = !!meta.__inlineGroupAnchor;
+                            const isMember = !!meta.__inlineGroupMember;
+                            const expanded = key
+                              ? expandedSet.has(key)
+                              : !!meta.__inlineGroupExpanded;
+                            const arrow = isAnchor ? (expanded ? '▾' : '▸') : isMember ? '·' : '';
+                            const onToggle = (e: React.MouseEvent) => {
+                              e.stopPropagation();
+                              if (!key) return;
+                              toggleGroupKey(key);
+                            };
+                            return (
+                              <>
+                                {isAnchor ? (
+                                  <button
+                                    onClick={onToggle}
+                                    aria-label={expanded ? 'Collapse trace' : 'Expand trace'}
+                                    type="button"
+                                    style={{
+                                      width: '18px',
+                                      height: '100%',
+                                      border: 'none',
+                                      background: 'var(--massive-table-inline-group-bg)',
+                                      color: 'inherit',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: 12,
+                                      margin: 0,
+                                      padding: 0,
+                                    }}
+                                  >
+                                    {arrow}
+                                  </button>
+                                ) : (
+                                  <div
+                                    style={{
+                                      width: '18px',
+                                      height: '100%',
+                                      background: isMember
+                                        ? 'var(--massive-table-inline-group-bg)'
+                                        : 'transparent',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: 12,
+                                    }}
+                                  >
+                                    {arrow}
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()
+                        )}
+                      </div>
+                    ) : null;
+
+                    const dataCells = columnsOrdered.map((col, ci) => {
                       const value = row == null ? undefined : getByPath(row, col.path);
                       const content = col.render ? (
                         col.render(value, row as Row, rowIndex)
@@ -940,6 +1049,8 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
                         </div>
                       );
                     });
+
+                    return [inlineCell, ...dataCells].filter(Boolean);
                   })()}
                 </div>
               </React.Fragment>
