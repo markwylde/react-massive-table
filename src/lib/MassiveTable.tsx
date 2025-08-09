@@ -167,11 +167,16 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
     },
     [isExpandedControlled, expandedKeys, onExpandedKeysChange],
   );
+  // Signature of grouping keys (paths only) — excludes expanded state
+  const groupPathsSig = React.useMemo(
+    () => groupBy.map((g) => JSON.stringify(g.path)).join('|'),
+    [groupBy],
+  );
+  // Full signature including expanded keys, used for data fetching/cache
   const groupSig = React.useMemo(() => {
-    const gb = groupBy.map((g) => JSON.stringify(g.path)).join('|');
     const ex = Array.from(expandedSet).sort().join('|');
-    return `${gb}::${ex}`;
-  }, [groupBy, expandedSet]);
+    return `${groupPathsSig}::${ex}`;
+  }, [groupPathsSig, expandedSet]);
 
   const { cache, setRange: setCacheRange } = useRowCache<Row>(
     effectiveRowCount,
@@ -470,10 +475,11 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
 
   // Measure the first row's natural height
   const firstRowRef = React.useRef<HTMLDivElement | null>(null);
-  // Reset measured height when table structure changes
+  // Reset measured height when table structure changes (sorts/group-by paths),
+  // but NOT on expand/collapse to avoid flashing reflows.
   React.useEffect(() => {
     setMeasuredRowHeight(null);
-  }, [sortsSig, groupSig]);
+  }, [sortsSig, groupPathsSig]);
 
   React.useLayoutEffect(() => {
     if (measuredRowHeight !== null) return; // Already measured
