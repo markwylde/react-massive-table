@@ -5,6 +5,9 @@ import 'prismjs/components/prism-typescript';
 import 'prismjs/components/prism-jsx';
 import 'prismjs/components/prism-tsx';
 import MassiveTable from './lib/MassiveTable';
+import baseClasses from './lib/styles/base.module.css';
+import darkTheme from './lib/styles/dark.module.css';
+import lightTheme from './lib/styles/light.module.css';
 import type { ColumnDef, ColumnPath, GetRowsResult, RowsRequest, Sort } from './lib/types';
 import { getByPath } from './lib/utils';
 
@@ -804,7 +807,8 @@ export default function App() {
             getRows={getRows}
             rowCount={rowCount}
             columns={columns}
-            mode={mode}
+            classes={baseClasses}
+            className={mode === 'dark' ? darkTheme.theme : lightTheme.theme}
             {...activeVariant.props}
             onColumnOrderPreviewChange={(o) => setPreviewOrder(o)}
             onColumnOrderChange={(o) => {
