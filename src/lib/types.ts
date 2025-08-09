@@ -14,28 +14,6 @@ export type ColumnDef<Row = unknown> = {
   inlineGroup?: boolean;
 };
 
-export type Theme = {
-  bg: string;
-  color: string;
-  headerBg: string;
-  headerColor: string;
-  rowHoverBg: string;
-  rowHoverColor?: string;
-  borderColor: string;
-  scrollbarThumb: string;
-  scrollbarTrack: string;
-  // New theme tokens for polish (optional in props)
-  radius?: string; // e.g. '8px'
-  headerHeight?: string; // e.g. '48px'
-  cellPxY?: string; // e.g. '8px' vertical padding
-  cellPxX?: string; // e.g. '12px' horizontal padding
-  headerShadow?: string; // e.g. '0 1px 0 rgba(0,0,0,0.04)'
-  rowStripeBg?: string; // zebra strip background
-  focusRing?: string; // e.g. '0 0 0 2px #3b82f6'
-  dimOverlay?: string; // e.g. 'rgba(0,0,0,0.1)' darken non-active columns on drag
-  headerCellPy?: string; // header cell vertical padding (e.g. '4px')
-};
-
 export type SortDirection = 'asc' | 'desc';
 
 export type Sort<_Row = unknown> = {
@@ -90,9 +68,6 @@ export type MassiveTableProps<Row = unknown> = MassiveTableEvents<Row> & {
   columns: ColumnDef<Row>[];
   rowHeight?: number | string | 'auto'; // e.g. 48, '75px', or 'auto'
   overscan?: number; // number of extra rows above/below
-  theme?: Partial<Theme>;
-  // Preferred built-in theme mode. Applies MassiveTable's CSS-module theme tokens.
-  mode?: 'light' | 'dark';
   style?: React.CSSProperties;
   className?: string;
   // Optional CSS Modules override for theming

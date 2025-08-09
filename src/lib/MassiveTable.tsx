@@ -1,8 +1,5 @@
 import * as React from 'react';
 
-import baseStyles from './styles/base.module.css';
-import darkTheme from './styles/dark.module.css';
-import lightTheme from './styles/light.module.css';
 import type {
   ColumnDef,
   GetRowsResult,
@@ -10,30 +7,8 @@ import type {
   GroupState,
   MassiveTableProps,
   Sort,
-  Theme,
 } from './types';
 import { clamp, getByPath, toPx } from './utils';
-
-const DEFAULT_THEME: Theme = {
-  bg: '#ffffff',
-  color: '#0f172a',
-  headerBg: '#f8fafc',
-  headerColor: '#0f172a',
-  rowHoverBg: '#f1f5f9',
-  rowHoverColor: '#0f172a',
-  borderColor: '#e2e8f0',
-  scrollbarThumb: '#cbd5e1',
-  scrollbarTrack: 'transparent',
-  radius: '10px',
-  headerHeight: '36px',
-  cellPxY: '6px',
-  headerCellPy: '4px',
-  cellPxX: '10px',
-  headerShadow: 'inset 0 -1px 0 rgba(15,23,42,0.08)',
-  rowStripeBg: '#f8fafc',
-  focusRing: '0 0 0 2px rgba(59,130,246,0.6)',
-  dimOverlay: 'rgba(0,0,0,0.1)',
-};
 
 type Cache<Row> = {
   rows: (Row | undefined)[];
@@ -87,8 +62,6 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
     columns,
     rowHeight = 'auto',
     overscan = 10,
-    theme,
-    mode = 'light',
     style,
     className,
     onVisibleRangeChange,
@@ -114,6 +87,11 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
     onExpandedKeysChange,
   } = props;
   const cn = (...parts: (string | undefined | false)[]) => parts.filter(Boolean).join(' ');
+  // Use only consumer-provided classes; no internal CSS import
+  const classes = React.useMemo(
+    () => (_classes ? (_classes as Record<string, string>) : ({} as Record<string, string>)),
+    [_classes],
+  );
 
   const [measuredRowHeight, setMeasuredRowHeight] = React.useState<number | null>(null);
   const rowH = measuredRowHeight || toPx(rowHeight, 48);
@@ -317,41 +295,6 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
     const base = colWidths.reduce((a, b) => a + b, 0);
     return hasInlineGroup ? base + inlineColWidth : base;
   }, [colWidths, hasInlineGroup]);
-
-  const themeVars = React.useMemo(() => {
-    const t = { ...DEFAULT_THEME, ...(theme ?? {}) };
-    // Always provide layout-related variables that depend on props
-    const layoutVars: React.CSSProperties & Record<string, string> = {
-      '--massive-table-header-h': t.headerHeight ?? '36px',
-      '--massive-table-cell-py': t.cellPxY ?? '8px',
-      '--massive-table-header-cell-py': t.headerCellPy ?? t.cellPxY ?? '8px',
-      '--massive-table-cell-px': t.cellPxX ?? '12px',
-    };
-
-    // If a theme object is provided, opt into setting color/visual variables.
-    // Otherwise, let CSS modules (base or themed) own visual styling.
-    if (theme) {
-      return {
-        ...layoutVars,
-        '--massive-table-bg': t.bg,
-        '--massive-table-color': t.color,
-        '--massive-table-header-bg': t.headerBg,
-        '--massive-table-header-color': t.headerColor,
-        '--massive-table-row-hover-bg': t.rowHoverBg,
-        '--massive-table-row-hover-color': t.rowHoverColor ?? t.color,
-        '--massive-table-border': t.borderColor,
-        '--massive-table-scrollbar-thumb': t.scrollbarThumb,
-        '--massive-table-scrollbar-track': t.scrollbarTrack,
-        '--massive-table-radius': t.radius ?? '8px',
-        '--massive-table-header-shadow': t.headerShadow ?? 'inset 0 -1px 0 rgba(0,0,0,0.06)',
-        '--massive-table-row-stripe': t.rowStripeBg ?? 'transparent',
-        '--massive-table-focus-ring': t.focusRing ?? '0 0 0 2px rgba(59,130,246,0.65)',
-        '--massive-table-dim-overlay': t.dimOverlay ?? 'rgba(0,0,0,0.1)',
-      } as React.CSSProperties & Record<string, string>;
-    }
-
-    return layoutVars;
-  }, [theme, rowH]);
 
   // Drag & drop handlers for columns
   const dragIndex = React.useRef<number | null>(null);
@@ -712,7 +655,6 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
     });
   };
 
-  const themeClass = mode === 'dark' ? darkTheme.theme : lightTheme.theme;
   const dragImageRef = React.useRef<HTMLDivElement | null>(null);
   const groupBarRef = React.useRef<HTMLDivElement | null>(null);
   const [groupBarHeight, setGroupBarHeight] = React.useState<number | null>(null);
@@ -739,9 +681,8 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
 
   return (
     <div
-      className={cn(baseStyles.root, themeClass, className)}
+      className={cn(classes.root, className)}
       style={{
-        ...themeVars,
         // Fallback to header height var until measured
         ...(showGroupByDropZone
           ? groupBarHeight != null
@@ -752,8 +693,8 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
       }}
     >
       {/* Invisible drag image placeholder to suppress default ghost */}
-      <div ref={dragImageRef} className={baseStyles.dragImage} aria-hidden />
-      <div ref={bodyRef} onScroll={onScroll} className={baseStyles.viewport}>
+      <div ref={dragImageRef} className={classes.dragImage} aria-hidden />
+      <div ref={bodyRef} onScroll={onScroll} className={classes.viewport}>
         {showGroupByDropZone && (
           <div
             ref={groupBarRef}
@@ -763,11 +704,11 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
             onDragOver={onGroupBarDragOver}
             onDragLeave={onGroupBarDragLeave}
             onDrop={onGroupBarDrop}
-            className={cn(baseStyles.groupBar, groupOver && baseStyles.groupBarOver)}
+            className={cn(classes.groupBar, groupOver && classes.groupBarOver)}
           >
-            <span className={baseStyles.groupLabel}>Group By:</span>
+            <span className={classes.groupLabel}>Group By:</span>
             {groupBy.length === 0 && (
-              <span className={baseStyles.groupEmpty}>Drag a column header here</span>
+              <span className={classes.groupEmpty}>Drag a column header here</span>
             )}
             {groupBy.map((g, i) => {
               const title =
@@ -783,7 +724,7 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
                   onDragEnd={onGroupChipDragEnd(i)}
                   title="Drag to reorder. Drag off to remove."
                   type="button"
-                  className={baseStyles.groupChip}
+                  className={classes.groupChip}
                 >
                   {title}
                 </button>
@@ -792,11 +733,11 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
           </div>
         )}
         <div
-          className={baseStyles.header}
+          className={classes.header}
           style={{ gridTemplateColumns: gridTemplate, width: totalWidth }}
         >
           {hasInlineGroup && (
-            <div key="__inline-toggle" className={baseStyles.headerCell} aria-hidden />
+            <div key="__inline-toggle" className={classes.headerCell} aria-hidden />
           )}
           {columnsOrdered.map((col, i) => {
             const sortIdx = sorts.findIndex((s) => pathEq(s.path, col.path));
@@ -821,14 +762,14 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
                 onDragEnd={handleHeaderDragEnd}
                 type="button"
                 className={cn(
-                  baseStyles.headerCell,
-                  draggableFor && baseStyles.headerCellGrab,
-                  clickableForSort && baseStyles.headerCellClickable,
+                  classes.headerCell,
+                  draggableFor && classes.headerCellGrab,
+                  clickableForSort && classes.headerCellClickable,
                 )}
               >
-                <span className={baseStyles.headerTitle}>{col.title}</span>
+                <span className={classes.headerTitle}>{col.title}</span>
                 {sortDir && (
-                  <span aria-hidden className={baseStyles.headerSort}>
+                  <span aria-hidden className={classes.headerSort}>
                     {sortDir === 'asc' ? '▲' : '▼'}
                     {sorts.length > 1 && sortIdx >= 0 && <span>{sortIdx + 1}</span>}
                   </span>
@@ -840,14 +781,14 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
                     onDragStart={(e) => e.preventDefault()}
                     onMouseDown={(e) => onResizeDown(i)(e)}
                     onTouchStart={(e) => onResizeDown(i)(e)}
-                    className={baseStyles.resizeGrip}
+                    className={classes.resizeGrip}
                   />
                 )}
               </button>
             );
           })}
         </div>
-        <div className={baseStyles.rows} style={{ height: contentHeight, width: totalWidth }}>
+        <div className={classes.rows} style={{ height: contentHeight, width: totalWidth }}>
           {Array.from({ length: Math.max(0, end - start) }).map((_, i) => {
             const rowIndex = start + i;
             const row = cache.rows[rowIndex];
@@ -872,7 +813,7 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
                   role="button"
                   tabIndex={0}
                   className={cn(
-                    baseStyles.row,
+                    classes.row,
                     (() => {
                       type InlineMeta = {
                         __inlineGroupMember?: boolean;
@@ -884,7 +825,7 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
                       const isExpandedAnchor = !!(
                         v?.__inlineGroupAnchor && v?.__inlineGroupExpanded
                       );
-                      return isMember || isExpandedAnchor ? baseStyles.inlineGroupMember : '';
+                      return isMember || isExpandedAnchor ? classes.inlineGroupMember : '';
                     })(),
                   )}
                 >
@@ -907,7 +848,7 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
                       const expanded = expandedSet.has(r.key);
                       return (
                         <div
-                          className={baseStyles.groupRow}
+                          className={classes.groupRow}
                           style={{
                             paddingLeft: `calc(var(--massive-table-cell-px) + ${(r.depth ?? 0) * 16}px)`,
                           }}
@@ -919,7 +860,7 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
                             }}
                             aria-label={expanded ? 'Collapse group' : 'Expand group'}
                             type="button"
-                            className={baseStyles.groupToggle}
+                            className={classes.groupToggle}
                           >
                             {expanded ? '▾' : '▸'}
                           </button>
@@ -947,7 +888,7 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
                     const inlineCell = hasInlineGroup ? (
                       <div
                         key={`${rowIndex}:-1`}
-                        className={baseStyles.cell}
+                        className={classes.cell}
                         style={{
                           padding: 0,
                           margin: 'calc(var(--massive-table-cell-py) * -1) 0',
@@ -1043,7 +984,7 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
                         <div
                           key={`${rowIndex}:${order[ci]}`}
                           style={cellStyle}
-                          className={baseStyles.cell}
+                          className={classes.cell}
                         >
                           {row == null ? <span style={{ opacity: 0.4 }}>…</span> : content}
                         </div>
