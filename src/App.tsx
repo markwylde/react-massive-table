@@ -3,6 +3,7 @@ import * as React from 'react';
 import MassiveTable from './lib/MassiveTable';
 import type { ColumnDef, ColumnPath, GetRowsResult, RowsRequest, Sort } from './lib/types';
 import { getByPath } from './lib/utils';
+import LogTracingDemo from './LogTracingDemo';
 
 type Row = {
   index: number;
@@ -265,6 +266,17 @@ export default function App() {
           },
         ],
       },
+      {
+        key: 'log-tracing',
+        title: 'Log Tracing',
+        variants: [
+          {
+            name: 'Log Tracing Demo',
+            props: {},
+            note: 'Shows log tracing with inline group (trace_id) functionality.',
+          },
+        ],
+      },
     ],
     [],
   );
@@ -454,20 +466,24 @@ export default function App() {
               {activeVariant.note ? ` — ${activeVariant.note}` : ''}
             </p>
           </div>
-          <MassiveTable<Row | GroupHeader>
-            key={`${activeExample.key}:${activeVariantIndex}`}
-            getRows={getRows}
-            rowCount={rowCount}
-            columns={columns}
-            mode={mode}
-            {...activeVariant.props}
-            onColumnOrderPreviewChange={(o) => setPreviewOrder(o)}
-            onColumnOrderChange={(o) => {
-              setOrder(o);
-              setPreviewOrder(null);
-            }}
-            style={{ height: '80vh', width: '100%' }}
-          />
+          {activeExample.key === 'log-tracing' ? (
+            <LogTracingDemo mode={mode} />
+          ) : (
+            <MassiveTable<Row | GroupHeader>
+              key={`${activeExample.key}:${activeVariantIndex}`}
+              getRows={getRows}
+              rowCount={rowCount}
+              columns={columns}
+              mode={mode}
+              {...activeVariant.props}
+              onColumnOrderPreviewChange={(o) => setPreviewOrder(o)}
+              onColumnOrderChange={(o) => {
+                setOrder(o);
+                setPreviewOrder(null);
+              }}
+              style={{ height: '80vh', width: '100%' }}
+            />
+          )}
         </main>
       </div>
     </div>
