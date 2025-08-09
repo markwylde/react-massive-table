@@ -216,6 +216,10 @@
   box-shadow: var(--massive-table-focus-ring);
 }
 
+.expandedSpanRow {
+  background: var(--massive-table-expanded-span-bg, rgba(0, 0, 0, 0.04));
+}
+
 /* Allow theme to enforce a measurement height via CSS */
 .rows > .row {
   min-height: var(--massive-table-first-row-min-h, auto);

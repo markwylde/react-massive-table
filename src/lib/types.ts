@@ -8,6 +8,7 @@ export type ColumnDef<Row = unknown> = {
   align?: 'left' | 'center' | 'right';
   headerTooltip?: string;
   render?: (value: unknown, row: Row, rowIndex: number) => React.ReactNode;
+  inlineGroup?: boolean; // Group rows by this column value inline
 };
 
 export type Theme = {
@@ -30,6 +31,7 @@ export type Theme = {
   focusRing?: string; // e.g. '0 0 0 2px #3b82f6'
   dimOverlay?: string; // e.g. 'rgba(0,0,0,0.1)' darken non-active columns on drag
   headerCellPy?: string; // header cell vertical padding (e.g. '4px')
+  expandedSpanBg?: string; // e.g. 'rgba(0,0,0,0.04)' darker background for expanded trace spans
 };
 
 export type SortDirection = 'asc' | 'desc';
@@ -48,10 +50,31 @@ export type GroupState = {
   expandedKeys: string[];
 };
 
+export type InlineGroupState = {
+  // List of expanded inline group keys (e.g., trace IDs)
+  expandedInlineKeys: string[];
+};
+
+export type InlineGroupHeader<Row = unknown> = {
+  __inlineGroup: true;
+  key: string;
+  value: unknown;
+  count: number;
+  path: ColumnPath;
+  firstRow: Row; // The representative row (first in chronological order)
+  allRows: Row[]; // All rows in this inline group
+};
+
+export type ExpandedSpanRow<Row = unknown> = Row & {
+  __expandedSpan: true;
+  traceId: string;
+};
+
 export type RowsRequest<Row = unknown> = {
   sorts?: Sort<Row>[];
   groupBy?: GroupBy<Row>[];
   groupState?: GroupState;
+  inlineGroupState?: InlineGroupState;
 };
 
 export type GetRowsResult<Row = unknown> = {
@@ -78,6 +101,7 @@ export type MassiveTableEvents<Row = unknown> = {
   onSortsChange?: (sorts: Sort<Row>[]) => void;
   onGroupByChange?: (groupBy: GroupBy<Row>[]) => void;
   onExpandedKeysChange?: (expandedKeys: string[]) => void;
+  onExpandedInlineKeysChange?: (expandedInlineKeys: string[]) => void;
 };
 
 export type MassiveTableProps<Row = unknown> = MassiveTableEvents<Row> & {
@@ -107,4 +131,7 @@ export type MassiveTableProps<Row = unknown> = MassiveTableEvents<Row> & {
   // Controlled/uncontrolled expanded group keys
   expandedKeys?: string[];
   defaultExpandedKeys?: string[];
+  // Controlled/uncontrolled expanded inline group keys
+  expandedInlineKeys?: string[];
+  defaultExpandedInlineKeys?: string[];
 };
