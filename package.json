@@ -12,14 +12,26 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
-    "./styles.css": "./dist/react-massive-table.css",
-    "./styles/base.module.css": "./dist/styles/base.module.css",
-    "./themes/light.module.css": "./dist/themes/light.module.css",
-    "./themes/dark.module.css": "./dist/themes/dark.module.css"
+    "./styles.css": {
+      "types": "./dist/types/css-modules.d.ts",
+      "default": "./dist/react-massive-table.css"
+    },
+    "./styles/base.module.css": {
+      "types": "./dist/types/css-modules.d.ts",
+      "default": "./dist/styles/base.module.css"
+    },
+    "./themes/light.module.css": {
+      "types": "./dist/types/css-modules.d.ts",
+      "default": "./dist/themes/light.module.css"
+    },
+    "./themes/dark.module.css": {
+      "types": "./dist/types/css-modules.d.ts",
+      "default": "./dist/themes/dark.module.css"
+    }
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p tsconfig.build.json && vite build && node scripts/copy-css.mjs",
+    "build": "vite build && tsc -p tsconfig.build.json && node scripts/copy-css.mjs",
     "build:demo": "vite build --config vite.site.config.ts",
     "preview": "vite preview",
     "preview:demo": "vite preview --config vite.site.config.ts",
@@ -50,5 +62,24 @@
     "typescript": "^5.9.2",
     "vite": "^7.1.1",
     "vitest": "^3.2.4"
+  },
+  "typesVersions": {
+    "*": {
+      "styles.css": [
+        "dist/types/css-modules.d.ts"
+      ],
+      "styles/*": [
+        "dist/types/css-modules.d.ts"
+      ],
+      "themes/*": [
+        "dist/types/css-modules.d.ts"
+      ],
+      "themes/dark.module.css": [
+        "dist/types/css-modules.d.ts"
+      ],
+      "themes/light.module.css": [
+        "dist/types/css-modules.d.ts"
+      ]
+    }
   }
 }
