@@ -76,19 +76,29 @@ body {
 
 .segmented {
   display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 2px;
   border: 1px solid var(--border);
   border-radius: 999px;
+  background: color-mix(in oklab, var(--fg) 6%, transparent);
   overflow: hidden;
 }
 .segmented button {
-  padding: 6px 10px;
+  padding: 6px 12px;
   background: transparent;
   border: 0;
   color: var(--fg);
   cursor: pointer;
+  border-radius: 999px; /* ensure pill corners when focused */
 }
 .segmented button.active {
-  background: color-mix(in oklab, var(--fg) 6%, transparent);
+  background: var(--accent);
+  color: #fff;
+}
+.segmented button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 40%, transparent);
 }
 
 /* Shell */

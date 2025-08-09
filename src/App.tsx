@@ -154,14 +154,55 @@ function buildLogs(): LogRow[] {
 }
 
 export default function App() {
-  const [mode, setMode] = React.useState<'light' | 'dark'>(
-    () => (localStorage.getItem('massive-table-mode') as 'light' | 'dark') || 'light',
-  );
+  const [mode, setMode] = React.useState<'light' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem('massive-table-mode') as 'light' | 'dark' | null;
+      if (saved === 'light' || saved === 'dark') return saved;
+    } catch {}
+    try {
+      const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ?? false;
+      return prefersDark ? 'dark' : 'light';
+    } catch {}
+    return 'light';
+  });
   React.useEffect(() => {
+    // Persist and apply theme at the document level so global CSS vars resolve
     try {
       localStorage.setItem('massive-table-mode', mode);
     } catch {}
+    try {
+      const root = document.documentElement;
+      root.setAttribute('data-theme', mode);
+      // Also mirror on body (defensive in case of component portals)
+      document.body?.setAttribute('data-theme', mode);
+    } catch {}
   }, [mode]);
+
+  // If the user hasn't explicitly chosen a theme, follow system changes
+  React.useEffect(() => {
+    let hasSaved = false;
+    try {
+      hasSaved = !!localStorage.getItem('massive-table-mode');
+    } catch {}
+    if (hasSaved) return;
+    const mql = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+    if (!mql) return;
+    const handler = (ev: MediaQueryListEvent) => setMode(ev.matches ? 'dark' : 'light');
+    try {
+      mql.addEventListener('change', handler);
+    } catch {
+      // Safari <14 legacy API
+      mql.addListener?.(handler);
+    }
+    return () => {
+      try {
+        mql.removeEventListener('change', handler);
+      } catch {
+        // Safari <14 legacy API
+        mql.removeListener?.(handler);
+      }
+    };
+  }, []);
   // Build demo data in-memory (deterministic via Chance + SEED)
   const data = React.useMemo(() => Array.from({ length: rowCount }, (_, i) => makeRow(i)), []);
 
