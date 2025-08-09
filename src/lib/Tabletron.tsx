@@ -1,4 +1,7 @@
 import * as React from 'react';
+import baseStyles from './styles/base.module.css';
+import darkTheme from './styles/dark.module.css';
+import lightTheme from './styles/light.module.css';
 import type {
   ColumnDef,
   GetRowsResult,
@@ -9,9 +12,6 @@ import type {
   Theme,
 } from './types';
 import { clamp, getByPath, toPx } from './utils';
-import baseStyles from './styles/base.module.css';
-import lightTheme from './styles/light.module.css';
-import darkTheme from './styles/dark.module.css';
 
 const DEFAULT_THEME: Theme = {
   bg: '#ffffff',
