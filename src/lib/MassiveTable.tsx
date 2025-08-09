@@ -5,9 +5,12 @@ import darkTheme from './styles/dark.module.css';
 import lightTheme from './styles/light.module.css';
 import type {
   ColumnDef,
+  ExpandedSpanRow,
   GetRowsResult,
   GroupBy,
   GroupState,
+  InlineGroupHeader,
+  InlineGroupState,
   MassiveTableProps,
   Sort,
   Theme,
@@ -33,6 +36,7 @@ const DEFAULT_THEME: Theme = {
   rowStripeBg: '#f8fafc',
   focusRing: '0 0 0 2px rgba(59,130,246,0.6)',
   dimOverlay: 'rgba(0,0,0,0.1)',
+  expandedSpanBg: 'rgba(0,0,0,0.04)',
 };
 
 type Cache<Row> = {
@@ -53,6 +57,118 @@ function useRowCache<Row>(count: number, resetKey?: unknown) {
     });
   }, []);
   return { cache, setRange } as const;
+}
+
+function getTimestamp<Row>(row: Row): number {
+  // Try to find a timestamp field - look for common names
+  const timestampFields = ['timestamp', 'time', 'created_at', 'createdAt', 'date'];
+  for (const field of timestampFields) {
+    const time = getByPath(row, [field]);
+    if (time instanceof Date) {
+      return time.getTime();
+    }
+  }
+  // Fall back to index if available
+  const index = getByPath(row, ['index']);
+  return typeof index === 'number' ? index : 0;
+}
+
+function processInlineGroups<Row>(
+  rows: Row[],
+  inlineGroupColumns: ColumnDef<Row>[],
+  expandedInlineSet: Set<string>
+): { rows: (Row | InlineGroupHeader<Row>)[]; total: number } {
+  if (inlineGroupColumns.length === 0) {
+    return { rows, total: rows.length };
+  }
+
+  // For now, support only the first inlineGroup column
+  const column = inlineGroupColumns[0];
+  const groupPath = column.path;
+
+  // Group rows by the inline group value
+  const groups = new Map<string, Row[]>();
+  const ungroupedRows: Row[] = [];
+
+  for (const row of rows) {
+    const value = getByPath(row, groupPath);
+    if (value == null) {
+      ungroupedRows.push(row);
+    } else {
+      const key = String(value);
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+      groups.get(key)?.push(row);
+    }
+  }
+
+
+  // Build a chronologically ordered list mixing ungrouped rows and inline group headers
+  const result: (Row | InlineGroupHeader<Row>)[] = [];
+
+  // Create timeline items from all data
+  const timelineItems: Array<{
+    timestamp: number;
+    type: 'row' | 'group';
+    data: Row | { key: string; rows: Row[] };
+  }> = [];
+
+  // Add ungrouped rows to timeline
+  for (const row of ungroupedRows) {
+    const timestamp = getTimestamp(row);
+    timelineItems.push({ timestamp, type: 'row', data: row });
+  }
+
+  // Add groups to timeline
+  for (const [key, groupRows] of groups.entries()) {
+    // Sort rows within the group chronologically
+    const sortedGroupRows = groupRows.slice().sort((a, b) => getTimestamp(a) - getTimestamp(b));
+    const firstTimestamp = getTimestamp(sortedGroupRows[0]);
+    timelineItems.push({
+      timestamp: firstTimestamp,
+      type: 'group',
+      data: { key, rows: sortedGroupRows }
+    });
+  }
+
+  // Sort timeline items chronologically
+  timelineItems.sort((a, b) => a.timestamp - b.timestamp);
+
+  // Build the final result from the sorted timeline
+  for (const item of timelineItems) {
+    if (item.type === 'row') {
+      result.push(item.data as Row);
+    } else {
+      const groupData = item.data as { key: string; rows: Row[] };
+      const { key, rows: groupRows } = groupData;
+      const value = getByPath(groupRows[0], groupPath);
+      
+      const inlineGroupHeader: InlineGroupHeader<Row> = {
+        __inlineGroup: true,
+        key,
+        value,
+        count: groupRows.length,
+        path: groupPath,
+        firstRow: groupRows[0],
+        allRows: groupRows,
+      };
+
+      result.push(inlineGroupHeader as Row | InlineGroupHeader<Row>);
+
+      // If expanded, add all rows in the group (mark them as expanded spans)
+      if (expandedInlineSet.has(key)) {
+        const expandedRows = groupRows.map(row => ({
+          ...row,
+          __expandedSpan: true,
+          traceId: key,
+        } as ExpandedSpanRow<Row>));
+        result.push(...expandedRows);
+      }
+    }
+  }
+
+  return { rows: result, total: result.length };
 }
 
 function useColumnOrder<Row>(columns: ColumnDef<Row>[]) {
@@ -112,6 +228,9 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
     expandedKeys: expandedKeysProp,
     defaultExpandedKeys,
     onExpandedKeysChange,
+    expandedInlineKeys: expandedInlineKeysProp,
+    defaultExpandedInlineKeys,
+    onExpandedInlineKeysChange,
   } = props;
   const cn = (...parts: (string | undefined | false)[]) => parts.filter(Boolean).join(' ');
 
@@ -173,10 +292,49 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
     return `${gb}::${ex}`;
   }, [groupBy, expandedSet]);
 
-  const { cache, setRange: setCacheRange } = useRowCache<Row>(
-    effectiveRowCount,
-    `${sortsSig}|${groupSig}`,
+  // Inline group state (controlled/uncontrolled)
+  const isExpandedInlineControlled = expandedInlineKeysProp !== undefined;
+  const [expandedInlineKeysState, setExpandedInlineKeysState] = React.useState<string[]>(
+    defaultExpandedInlineKeys ?? [],
   );
+  const expandedInlineKeys = (isExpandedInlineControlled ? expandedInlineKeysProp : expandedInlineKeysState) ?? [];
+  const expandedInlineSet = React.useMemo(() => new Set(expandedInlineKeys), [expandedInlineKeys]);
+  const setExpandedInline = React.useCallback(
+    (updater: (prev: string[]) => string[]) => {
+      const next = updater(expandedInlineKeys);
+      if (!isExpandedInlineControlled) setExpandedInlineKeysState(next);
+      onExpandedInlineKeysChange?.(next);
+    },
+    [isExpandedInlineControlled, expandedInlineKeys, onExpandedInlineKeysChange],
+  );
+  const inlineGroupSig = React.useMemo(() => {
+    return Array.from(expandedInlineSet).sort().join('|');
+  }, [expandedInlineSet]);
+
+  // Process inline groups to get the actual row count for cache sizing
+  const processedRowInfo = React.useMemo(() => {
+    const inlineGroupColumns = columns.filter(col => col.inlineGroup);
+    if (inlineGroupColumns.length === 0) {
+      return { count: rowCount, hasInlineGroups: false };
+    }
+    // For cache sizing, we need to estimate based on current expansion state
+    const expandedCount = expandedInlineSet.size;
+    // Each expanded group shows 1 header + N spans, collapsed shows just 1 header
+    // This is an approximation - the exact count will be calculated when rows are fetched
+    const estimatedAdditionalRows = expandedCount * 4; // Estimate 4 additional rows per expanded group
+    return { count: rowCount + estimatedAdditionalRows, hasInlineGroups: true };
+  }, [rowCount, columns, expandedInlineSet.size]);
+
+  const { cache, setRange: setCacheRange } = useRowCache<Row>(
+    processedRowInfo.count,
+    `${sortsSig}|${groupSig}|${inlineGroupSig}`,
+  );
+  
+  // Update effective row count when processedRowInfo changes
+  React.useEffect(() => {
+    setEffectiveRowCount(processedRowInfo.count);
+  }, [processedRowInfo.count]);
+  
   const { columnsOrdered, order, move } = useColumnOrder(columns);
 
   // To avoid browser max scroll height limits (~16.7M px in some engines),
@@ -232,6 +390,7 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
       sorts,
       groupBy,
       groupState: { expandedKeys: Array.from(expandedSet) } as GroupState,
+      inlineGroupState: { expandedInlineKeys: Array.from(expandedInlineSet) } as InlineGroupState,
     };
     type MaybeGetRows = GetRowsResult<Row> | Row[] | unknown;
     const isGetRowsResult = (v: unknown): v is GetRowsResult<Row> =>
@@ -250,11 +409,23 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
         rows = [] as Row[];
         total = rowCount;
       }
-      setEffectiveRowCount(total);
+
+      // Apply inline grouping if any columns have inlineGroup: true
+      const inlineGroupColumns = columns.filter(col => col.inlineGroup);
+      if (inlineGroupColumns.length > 0) {
+        const processedRows = processInlineGroups(rows, inlineGroupColumns, expandedInlineSet);
+        rows = processedRows.rows as Row[];
+        total = processedRows.total;
+        // Update effective row count if the actual processed count is different from estimate
+        if (total !== effectiveRowCount) {
+          setEffectiveRowCount(total);
+        }
+      }
+
       setCacheRange(a, rows);
       onRowsRenderedRef.current?.(a, b);
     });
-  }, [start, end, overscan, rowCount, setCacheRange, sortsSig, groupSig, effectiveRowCount]);
+  }, [start, end, overscan, rowCount, setCacheRange, sortsSig, groupSig, inlineGroupSig, effectiveRowCount, columns]);
 
   // Handle scroll to compute visible range
   const onScroll = React.useCallback(() => {
@@ -334,6 +505,7 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
         '--massive-table-row-stripe': t.rowStripeBg ?? 'transparent',
         '--massive-table-focus-ring': t.focusRing ?? '0 0 0 2px rgba(59,130,246,0.65)',
         '--massive-table-dim-overlay': t.dimOverlay ?? 'rgba(0,0,0,0.1)',
+        '--massive-table-expanded-span-bg': t.expandedSpanBg ?? 'rgba(0,0,0,0.04)',
       } as React.CSSProperties & Record<string, string>;
     }
 
@@ -699,6 +871,15 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
     });
   };
 
+  const toggleInlineGroupKey = (key: string) => {
+    setExpandedInline((prevArr) => {
+      const s = new Set(prevArr);
+      if (s.has(key)) s.delete(key);
+      else s.add(key);
+      return Array.from(s);
+    });
+  };
+
   const themeClass = mode === 'dark' ? darkTheme.theme : lightTheme.theme;
   const dragImageRef = React.useRef<HTMLDivElement | null>(null);
   const groupBarRef = React.useRef<HTMLDivElement | null>(null);
@@ -836,6 +1017,17 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
             const rowIndex = start + i;
             const row = cache.rows[rowIndex];
             const top = rowIndex * rowH - baseOffsetPx;
+            
+            // Check if this row is an expanded span
+            const isExpandedSpan = (
+              v: unknown,
+            ): v is ExpandedSpanRow<Row> =>
+              typeof v === 'object' &&
+              v !== null &&
+              '__expandedSpan' in (v as Record<string, unknown>);
+            
+            const expandedSpan = isExpandedSpan(row);
+            
             return (
               <React.Fragment key={rowIndex}>
                 {/* biome-ignore lint/a11y/useSemanticElements: row cannot be <button> due to nested buttons */}
@@ -855,7 +1047,7 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
                   }}
                   role="button"
                   tabIndex={0}
-                  className={baseStyles.row}
+                  className={cn(baseStyles.row, expandedSpan && baseStyles.expandedSpanRow)}
                 >
                   {(() => {
                     const isGroupRow = (
@@ -905,6 +1097,78 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
                         </div>
                       );
                     }
+                    
+                    // Check for inline group row
+                    const isInlineGroupRow = (
+                      v: unknown,
+                    ): v is InlineGroupHeader<Row> =>
+                      typeof v === 'object' &&
+                      v !== null &&
+                      '__inlineGroup' in (v as Record<string, unknown>);
+                    
+                    if (isInlineGroupRow(r)) {
+                      const expanded = expandedInlineSet.has(r.key);
+                      return columnsOrdered.map((col, ci) => {
+                        if (ci === 0) {
+                          // First column shows the expand/collapse button and trace info
+                          const value = getByPath(r.firstRow, col.path);
+                          const content = col.render ? (
+                            col.render(value, r.firstRow, rowIndex)
+                          ) : value === null ? (
+                            <span>null</span>
+                          ) : (
+                            String(value ?? '')
+                          );
+                          const align = col.align ?? 'left';
+                          const cellStyle: React.CSSProperties = { textAlign: align };
+                          return (
+                            <div
+                              key={`inline-${rowIndex}:${order[ci]}`}
+                              style={cellStyle}
+                              className={baseStyles.cell}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleInlineGroupKey(r.key);
+                                  }}
+                                  aria-label={expanded ? 'Collapse trace' : 'Expand trace'}
+                                  type="button"
+                                  className={baseStyles.groupToggle}
+                                  style={{ marginRight: '4px', padding: '2px', fontSize: '12px' }}
+                                >
+                                  {expanded ? '▾' : '▸'}
+                                </button>
+                                {content}
+                              </div>
+                            </div>
+                          );
+                        } else {
+                          // Other columns show data from the first row
+                          const value = getByPath(r.firstRow, col.path);
+                          const content = col.render ? (
+                            col.render(value, r.firstRow, rowIndex)
+                          ) : value === null ? (
+                            <span>null</span>
+                          ) : (
+                            String(value ?? '')
+                          );
+                          const align = col.align ?? 'left';
+                          const cellStyle: React.CSSProperties = { textAlign: align };
+                          return (
+                            <div
+                              key={`inline-${rowIndex}:${order[ci]}`}
+                              style={cellStyle}
+                              className={baseStyles.cell}
+                            >
+                              {content}
+                            </div>
+                          );
+                        }
+                      });
+                    }
+                    
                     return columnsOrdered.map((col, ci) => {
                       const value = row == null ? undefined : getByPath(row, col.path);
                       const content = col.render ? (
