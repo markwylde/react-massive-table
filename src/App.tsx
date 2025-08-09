@@ -1,7 +1,7 @@
 import Chance from 'chance';
 import * as React from 'react';
 import Tabletron from './lib/Tabletron';
-import type { ColumnDef, ColumnPath, GetRowsResult, RowsRequest } from './lib/types';
+import type { ColumnDef, ColumnPath, GetRowsResult, RowsRequest, Sort } from './lib/types';
 import { getByPath } from './lib/utils';
 
 type Row = {
@@ -58,10 +58,9 @@ export default function App() {
       localStorage.setItem('tabletron-mode', mode);
     } catch {}
   }, [mode]);
-  const [order, setOrder] = React.useState<number[]>([]);
-  const [previewOrder, setPreviewOrder] = React.useState<number[] | null>(null);
   // Build demo data in-memory (deterministic via Chance + SEED)
   const data = React.useMemo(() => Array.from({ length: rowCount }, (_, i) => makeRow(i)), []);
+
   // Cache sorted arrays per sorts signature
   const sortedCacheRef = React.useRef<Map<string, Row[]>>(new Map());
   const groupedCacheRef = React.useRef<Map<string, (Row | GroupHeader)[]>>(new Map());
@@ -186,27 +185,158 @@ export default function App() {
     [data],
   );
 
+  // Storybook-like example registry
+  type Variant = {
+    name: string;
+    props: Partial<React.ComponentProps<typeof Tabletron<Row | GroupHeader>>>;
+    note?: string;
+  };
+  type Example = { key: string; title: string; variants: Variant[] };
+
+  const examples: Example[] = React.useMemo(
+    () => [
+      {
+        key: 'basic',
+        title: 'Basic',
+        variants: [
+          {
+            name: 'Basic Table',
+            props: {}, // rely on component defaults (all features off)
+            note: 'No sort, no reorder, no resize, no group bar.',
+          },
+        ],
+      },
+      {
+        key: 'sorting',
+        title: 'Sorting',
+        variants: [
+          { name: 'Enable Sorting', props: { enableSort: true } },
+          {
+            name: 'Default Sorts',
+            props: {
+              enableSort: true,
+              defaultSorts: [{ path: ['lastName'], dir: 'asc' }] as Sort[],
+            },
+            note: 'Pre-sorted by Last Name ascending.',
+          },
+        ],
+      },
+      {
+        key: 'reorder',
+        title: 'Column Reorder',
+        variants: [{ name: 'Enable Reorder', props: { enableReorder: true } }],
+      },
+      {
+        key: 'resize',
+        title: 'Column Resize',
+        variants: [{ name: 'Enable Resize', props: { enableResize: true } }],
+      },
+      {
+        key: 'grouping',
+        title: 'Grouping',
+        variants: [
+          { name: 'Show Group Bar', props: { showGroupByDropZone: true } },
+          {
+            name: 'Preset Group By Category',
+            props: { showGroupByDropZone: true, defaultGroupBy: [{ path: ['category'] }] },
+          },
+          {
+            name: 'Preset Group + Expanded',
+            props: {
+              showGroupByDropZone: true,
+              defaultGroupBy: [{ path: ['category'] }],
+              defaultExpandedKeys: ['["one"]', '["two"]', '[null]'],
+            },
+          },
+        ],
+      },
+      {
+        key: 'all',
+        title: 'All Features',
+        variants: [
+          {
+            name: 'Sortable + Reorder + Resize + Group Bar',
+            props: {
+              enableSort: true,
+              enableReorder: true,
+              enableResize: true,
+              showGroupByDropZone: true,
+            },
+          },
+        ],
+      },
+    ],
+    [],
+  );
+
+  // Basic hash router: #/exampleKey or #/exampleKey/variantIndex
+  const [activeExampleKey, setActiveExampleKey] = React.useState<string>('basic');
+  const activeExample = examples.find((e) => e.key === activeExampleKey) ??
+    examples[0] ?? { key: 'fallback', title: 'Fallback', variants: [] };
+  const [activeVariantIndex, setActiveVariantIndex] = React.useState<number>(0);
+  // Sync from URL hash on load and when it changes
+  React.useEffect(() => {
+    const parse = () => {
+      const hash = window.location.hash.replace(/^#/, '');
+      const parts = hash.split('/').filter(Boolean); // [exampleKey, variantIdx?]
+      const nextKey = parts[0] || 'basic';
+      const found = examples.find((e) => e.key === nextKey);
+      if (!found) {
+        setActiveExampleKey('basic');
+        setActiveVariantIndex(0);
+        return;
+      }
+      setActiveExampleKey(found.key);
+      const idx = parts[1] ? Number(parts[1]) : 0;
+      const safeIdx = Number.isFinite(idx)
+        ? Math.max(0, Math.min(idx, found.variants.length - 1))
+        : 0;
+      setActiveVariantIndex(Number.isNaN(safeIdx) ? 0 : safeIdx);
+    };
+    window.addEventListener('hashchange', parse);
+    parse();
+    return () => window.removeEventListener('hashchange', parse);
+  }, [examples]);
+
+  // Navigate helper
+  const navigate = React.useCallback((key: string, variant?: number) => {
+    const v = typeof variant === 'number' ? `/${variant}` : '';
+    const next = `#/${key}${v}`;
+    if (window.location.hash !== next) window.location.hash = next;
+  }, []);
+
+  const activeVariant = activeExample.variants[activeVariantIndex] ??
+    activeExample.variants[0] ?? { name: 'Variant', props: {} };
+
+  // Keep order state to display in reorder example
+  const [order, setOrder] = React.useState<number[]>([]);
+  const [previewOrder, setPreviewOrder] = React.useState<number[] | null>(null);
+
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* Top bar */}
       <div
         style={{
-          padding: 16,
+          padding: 12,
           display: 'flex',
           gap: 16,
           alignItems: 'center',
           justifyContent: 'space-between',
+          borderBottom: '1px solid #e2e8f0',
         }}
       >
         <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-          <h1 style={{ margin: 0 }}>Tabletron Demo</h1>
-          {previewOrder ? (
-            <p style={{ margin: 0, color: '#555' }}>Preview order: {previewOrder.join(', ')}</p>
-          ) : (
-            <p style={{ margin: 0, color: '#555' }}>
-              Final order: {order.join(', ') || '(default)'}
-            </p>
+          <h1 style={{ margin: 0, fontSize: 18 }}>Tabletron Examples</h1>
+          {activeExample.key === 'reorder' && (
+            <span style={{ color: '#555' }}>
+              {previewOrder
+                ? `Preview order: ${previewOrder.join(', ')}`
+                : `Final order: ${order.join(', ') || '(default)'}`}
+            </span>
           )}
-          <p style={{ margin: 0, color: '#555' }}>Shift+click headers to multi-sort.</p>
+          {activeExample.key === 'sorting' && (
+            <span style={{ color: '#555' }}>Shift+click headers to multi-sort.</span>
+          )}
         </div>
         <fieldset
           style={{
@@ -254,19 +384,93 @@ export default function App() {
           </div>
         </fieldset>
       </div>
-      <div style={{ flex: 1, padding: 16, paddingTop: 0 }}>
-        <Tabletron<Row | GroupHeader>
-          getRows={getRows}
-          rowCount={rowCount}
-          columns={columns}
-          mode={mode}
-          onColumnOrderPreviewChange={(o) => setPreviewOrder(o)}
-          onColumnOrderChange={(o) => {
-            setOrder(o);
-            setPreviewOrder(null);
+
+      {/* Body: sidebar + content */}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        {/* Sidebar */}
+        <aside
+          style={{
+            width: 280,
+            borderRight: '1px solid #e2e8f0',
+            padding: 12,
+            overflow: 'auto',
           }}
-          style={{ height: '80vh', width: '100%' }}
-        />
+        >
+          {examples.map((ex) => (
+            <div key={ex.key} style={{ marginBottom: 8 }}>
+              <a
+                href={`#/${ex.key}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate(ex.key);
+                }}
+                style={{
+                  display: 'block',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  color: ex.key === activeExampleKey ? '#111827' : 'inherit',
+                  textDecoration: 'none',
+                  padding: '6px 0',
+                }}
+              >
+                {ex.title}
+              </a>
+              {ex.key === activeExampleKey && (
+                <ul style={{ listStyle: 'none', paddingLeft: 12, margin: '6px 0 8px 0' }}>
+                  {ex.variants.map((v, i) => (
+                    <li key={v.name} style={{ marginBottom: 4 }}>
+                      <a
+                        href={`#/${ex.key}/${i}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          navigate(ex.key, i);
+                        }}
+                        style={{
+                          display: 'block',
+                          background: i === activeVariantIndex ? '#1118270f' : 'transparent',
+                          border: 0,
+                          padding: '6px 8px',
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          width: '100%',
+                          textAlign: 'left',
+                          color: 'inherit',
+                          textDecoration: 'none',
+                        }}
+                      >
+                        {v.name}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </aside>
+
+        {/* Content */}
+        <main style={{ flex: 1, padding: 12 }}>
+          <div style={{ marginBottom: 8 }}>
+            <h2 style={{ margin: '0 0 4px 0', fontSize: 16 }}>{activeExample.title}</h2>
+            <p style={{ margin: 0, color: '#555' }}>
+              {activeVariant.name}
+              {activeVariant.note ? ` — ${activeVariant.note}` : ''}
+            </p>
+          </div>
+          <Tabletron<Row | GroupHeader>
+            getRows={getRows}
+            rowCount={rowCount}
+            columns={columns}
+            mode={mode}
+            {...activeVariant.props}
+            onColumnOrderPreviewChange={(o) => setPreviewOrder(o)}
+            onColumnOrderChange={(o) => {
+              setOrder(o);
+              setPreviewOrder(null);
+            }}
+            style={{ height: '80vh', width: '100%' }}
+          />
+        </main>
       </div>
     </div>
   );
