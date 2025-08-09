@@ -979,9 +979,7 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
                                 {isAnchor ? (
                                   <button
                                     onClick={onToggle}
-                                    aria-label={
-                                      expanded ? 'Collapse inline group' : 'Expand inline group'
-                                    }
+                                    aria-label={expanded ? 'Collapse trace' : 'Expand trace'}
                                     type="button"
                                     style={{
                                       width: '18px',
