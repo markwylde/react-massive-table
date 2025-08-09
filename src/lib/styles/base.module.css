@@ -204,9 +204,6 @@
   padding: var(--massive-table-cell-py) 0;
   text-align: left;
 }
-.row:nth-child(even) {
-  background: var(--massive-table-row-stripe);
-}
 .row:hover {
   background: var(--massive-table-row-hover-bg);
   color: var(--massive-table-row-hover-color);
