@@ -1,1 +1,1 @@
-export * from './lib/Tabletron';
+export * from './lib/MassiveTable';
