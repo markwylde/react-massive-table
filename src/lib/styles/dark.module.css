@@ -1,0 +1,17 @@
+.theme {
+  --tabletron-bg: #0b1220;
+  --tabletron-color: #e5e7eb;
+  --tabletron-header-bg: #0f172a;
+  --tabletron-header-color: #e5e7eb;
+  --tabletron-row-hover-bg: #111827;
+  --tabletron-row-hover-color: #f3f4f6;
+  --tabletron-border: #1f2937;
+  --tabletron-scrollbar-thumb: #374151;
+  --tabletron-scrollbar-track: transparent;
+  --tabletron-radius: 10px;
+  --tabletron-header-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+  --tabletron-row-stripe: #0d1526;
+  --tabletron-focus-ring: 0 0 0 2px rgba(96, 165, 250, 0.55);
+  /* Optional: theme can set the first row min height for measurement */
+  --tabletron-first-row-min-h: 32px;
+}
