@@ -12,11 +12,14 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
-    "./styles.css": "./dist/style.css"
+    "./styles.css": "./dist/react-massive-table.css",
+    "./styles/base.module.css": "./dist/styles/base.module.css",
+    "./themes/light.module.css": "./dist/themes/light.module.css",
+    "./themes/dark.module.css": "./dist/themes/dark.module.css"
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p tsconfig.build.json && vite build",
+    "build": "tsc -p tsconfig.build.json && vite build && node scripts/copy-css.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "biome lint .",
