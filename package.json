@@ -20,7 +20,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.build.json && vite build && node scripts/copy-css.mjs",
+    "build:demo": "vite build --config vite.site.config.ts",
     "preview": "vite preview",
+    "preview:demo": "vite preview --config vite.site.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "biome lint .",
     "format": "biome format .",

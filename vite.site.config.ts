@@ -5,8 +5,8 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   plugins: [react()],
   build: {
-    // Keep library build output in dist, and site output separate
-    outDir: 'site',
+    // Keep library build output in dist, and demo output separate
+    outDir: 'demo',
   },
 });
 
