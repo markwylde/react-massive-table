@@ -1,8 +1,67 @@
 import Chance from 'chance';
 import * as React from 'react';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-typescript';
+import 'prismjs/components/prism-jsx';
+import 'prismjs/components/prism-tsx';
 import MassiveTable from './lib/MassiveTable';
 import type { ColumnDef, ColumnPath, GetRowsResult, RowsRequest, Sort } from './lib/types';
 import { getByPath } from './lib/utils';
+
+// Tiny, dependency-free TS/TSX highlighter for demo snippets
+function escapeHtml(s: string) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function _highlightTSX(code: string): string {
+  const src = escapeHtml(code);
+  // Order matters: comments -> strings -> template -> numbers -> keywords -> types -> functions -> operators
+  const patterns = [
+    // block comments
+    { re: /\/\*[\s\S]*?\*\//g, cls: 'tok-com' },
+    // line comments
+    { re: /(^|\s)(\/\/.*)$/gm, cls: 'tok-com', group: 2 },
+    // template strings (simple)
+    { re: /`(?:\\[\s\S]|[^\\`])*`/g, cls: 'tok-str' },
+    // strings
+    { re: /'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"/g, cls: 'tok-str' },
+    // numbers
+    { re: /\b\d+(?:_\d+)*(?:\.?\d+)?\b/g, cls: 'tok-num' },
+    // keywords (TS/JS common)
+    {
+      re: /\b(abstract|any|as|asserts|async|await|break|case|catch|class|const|continue|default|delete|do|else|enum|export|extends|false|finally|for|from|function|get|if|implements|import|in|infer|instanceof|interface|is|keyof|let|new|null|of|private|protected|public|readonly|return|set|static|super|switch|this|throw|true|try|type|typeof|undefined|unknown|var|void|while|with|yield)\b/g,
+      cls: 'tok-kw',
+    },
+    // types (very lightweight: capitalized identifiers and generics)
+    { re: /\b[A-Z][A-Za-z0-9_]*\b/g, cls: 'tok-typ' },
+    // function names after 'function' or const foo = () =>
+    { re: /\bfunction\s+([a-zA-Z_][\w]*)/g, cls: 'tok-fn', group: 1 },
+    // operators/punctuation
+    { re: /[{}()[\].,;:<>/*+=!&|?-]/g, cls: 'tok-op' },
+  ];
+  // Apply patterns without re-highlighting inserted spans: split with a global regex pass
+  // We’ll iterate characters and replace using a combined regex alternation built from patterns.
+  // For simplicity, we run sequential replacements on the escaped source while avoiding matching within spans.
+  let out = src;
+  for (const p of patterns) {
+    out = out.replace(p.re, (m: string, ...rest: unknown[]) => {
+      const idx = typeof p.group === 'number' ? (rest[p.group - 1] as string | undefined) : undefined;
+      if (idx) {
+        // Replace only the group; keep full match intact
+        const full = m;
+        const groupText = idx;
+        const start = full.indexOf(groupText);
+        if (start >= 0) {
+          const before = full.slice(0, start);
+          const after = full.slice(start + groupText.length);
+          return `${before}<span class="${p.cls}">${groupText}</span>${after}`;
+        }
+        return `<span class="${p.cls}">${m}</span>`;
+      }
+      return `<span class="${p.cls}">${m}</span>`;
+    });
+  }
+  return out;
+}
 
 type Row = {
   index: number;
@@ -575,128 +634,152 @@ export default function App() {
   const [order, setOrder] = React.useState<number[]>([]);
   const [previewOrder, setPreviewOrder] = React.useState<number[] | null>(null);
 
+  // Helper: build a concise usage snippet per variant
+  const usageCode = React.useMemo(() => {
+    const v = activeVariant;
+    const isLogs = activeExample.key === 'logs';
+    const baseHeader = `import MassiveTable from 'react-massive-table';\n`;
+    const baseRow = isLogs
+      ? `type Row = { id: number; ts: number; level: 'DEBUG'|'INFO'|'WARN'|'ERROR'; message: string; trace_id?: string|null; index: number };\n`
+      : `type Row = { index: number; firstName: string; lastName: string; category: 'one'|'two'|null; favourites: { colour: string; number: number } };\n`;
+    const cols = isLogs
+      ? `const columns: ColumnDef<Row>[] = [\n  { path: ['index'], title: '#', width: 80 },\n  { path: ['level'], title: 'Level', width: 200 },\n  { path: ['message'], title: 'Message' },\n  { path: ['trace_id'], title: 'Trace ID', inlineGroup: true },\n];\n`
+      : `const columns: ColumnDef<Row>[] = [\n  { path: ['index'], title: '#', width: 80, align: 'right' },\n  { path: ['category'], title: 'Category', width: 200 },\n  { path: ['favourites','colour'], title: 'Favourite Colour', width: 200 },\n  { path: ['favourites','number'], title: 'Favourite Number', width: 140, align: 'right' },\n  { path: ['lastName'], title: 'Last Name', width: 220 },\n  { path: ['firstName'], title: 'First Name' },\n];\n`;
+    const getRowsSig = isLogs
+      ? `// See demo source for inline-grouping by trace\nconst getRows = (start: number, end: number, req?: RowsRequest<Row>) => {/* ... */};\n`
+      : `// Provide rows for the visible window\nconst getRows = (start: number, end: number, req?: RowsRequest<Row>) => {/* ... */};\n`;
+    const props: string[] = [];
+    // Always include core props
+    if (isLogs) {
+      props.push('columns={columns}');
+      props.push('getRows={getRows}');
+      props.push(`rowCount={${isLogs ? 'logs.length' : 'rowCount'}}`);
+    } else {
+      props.push('columns={columns}');
+      props.push('getRows={getRows}');
+      props.push('rowCount={rowCount}');
+    }
+    // Variant props
+    type VariantPropsExtras = {
+      defaultSorts?: Sort[];
+      defaultGroupBy?: { path: ColumnPath }[];
+      rowHeight?: unknown;
+    };
+    const p = (v.props ?? {}) as Partial<
+      React.ComponentProps<typeof MassiveTable<Row | GroupHeader>>
+    > &
+      VariantPropsExtras;
+    if (p.enableSort) props.push('enableSort');
+    if (p.enableReorder) props.push('enableReorder');
+    if (p.enableResize) props.push('enableResize');
+    if (p.showGroupByDropZone) props.push('showGroupByDropZone');
+    if (p.defaultSorts) {
+      const ds = p.defaultSorts as Sort[];
+      props.push(`defaultSorts={[${ds
+        .map((s) => `{ path: ${JSON.stringify(s.path)}, dir: '${s.dir}' }`)
+        .join(', ')}]}`);
+    }
+    if (p.defaultGroupBy) {
+      const dg = p.defaultGroupBy as { path: ColumnPath }[];
+      props.push(`defaultGroupBy={[${dg
+        .map((g) => `{ path: ${JSON.stringify(g.path)} }`)
+        .join(', ')}]}`);
+    }
+    if (p.rowHeight !== undefined)
+      props.push(`rowHeight={${JSON.stringify(p.rowHeight)}}`);
+
+    const open = `<MassiveTable<Row>\n  `;
+    const body = props.map((line) => `  ${line}`).join('\n');
+    const close = `\n/>`;
+    return [
+      baseHeader,
+      baseRow,
+      `/* Columns */\n${cols}`,
+      `/* Data fetching */\n${getRowsSig}`,
+      `/* Usage */\n${open}${body}${close}`,
+    ].join('\n');
+  }, [activeExample.key, activeVariant]);
+
+  const copyUsage = React.useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(usageCode);
+    } catch {}
+  }, [usageCode]);
+  const usageHtml = React.useMemo(
+    () => Prism.highlight(usageCode, Prism.languages.tsx, 'tsx'),
+    [usageCode],
+  );
+  const usageCodeRef = React.useRef<HTMLElement | null>(null);
+  React.useEffect(() => {
+    if (usageCodeRef.current) {
+      usageCodeRef.current.innerHTML = usageHtml;
+    }
+  }, [usageHtml]);
+
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div className="app" data-theme={mode}>
       {/* Top bar */}
-      <div
-        style={{
-          padding: 12,
-          display: 'flex',
-          gap: 16,
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid #e2e8f0',
-        }}
-      >
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-          <h1 style={{ margin: 0, fontSize: 18 }}>MassiveTable Examples</h1>
+      <div className="topbar">
+        <div className="brand">
+          <h1>MassiveTable Examples</h1>
           {activeExample.key === 'reorder' && (
-            <span style={{ color: '#555' }}>
+            <span className="subtle">
               {previewOrder
                 ? `Preview order: ${previewOrder.join(', ')}`
                 : `Final order: ${order.join(', ') || '(default)'}`}
             </span>
           )}
         </div>
-        <fieldset
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            border: 0,
-            margin: 0,
-            padding: 0,
-          }}
-        >
-          <legend style={{ fontSize: 12, color: '#555' }}>Theme</legend>
-          <div
-            style={{
-              display: 'inline-flex',
-              borderRadius: 999,
-              border: '1px solid #e2e8f0',
-              overflow: 'hidden',
-            }}
-          >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span className="subtle">Theme</span>
+          <fieldset className="segmented" aria-label="Theme toggle">
             <button
               onClick={() => setMode('light')}
               type="button"
-              style={{
-                padding: '6px 10px',
-                background: mode === 'light' ? '#1118270f' : 'transparent',
-                border: 0,
-                cursor: 'pointer',
-              }}
+              className={mode === 'light' ? 'active' : undefined}
+              aria-pressed={mode === 'light'}
             >
               Light
             </button>
             <button
               onClick={() => setMode('dark')}
               type="button"
-              style={{
-                padding: '6px 10px',
-                background: mode === 'dark' ? '#1118270f' : 'transparent',
-                border: 0,
-                cursor: 'pointer',
-              }}
+              className={mode === 'dark' ? 'active' : undefined}
+              aria-pressed={mode === 'dark'}
             >
               Dark
             </button>
-          </div>
-        </fieldset>
+          </fieldset>
+        </div>
       </div>
 
       {/* Body: sidebar + content */}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      <div className="shell">
         {/* Sidebar */}
-        <aside
-          style={{
-            width: 280,
-            borderRight: '1px solid #e2e8f0',
-            padding: 12,
-            overflow: 'auto',
-          }}
-        >
+        <aside className="sidebar">
           {examples.map((ex) => (
-            <div key={ex.key} style={{ marginBottom: 8 }}>
+            <div key={ex.key} className="nav-group">
               <a
                 href={`#/${ex.key}`}
                 onClick={(e) => {
                   e.preventDefault();
                   navigate(ex.key);
                 }}
-                style={{
-                  display: 'block',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  color: ex.key === activeExampleKey ? '#111827' : 'inherit',
-                  textDecoration: 'none',
-                  padding: '6px 0',
-                }}
+                className={ex.key === activeExampleKey ? 'nav-title active' : 'nav-title'}
               >
                 {ex.title}
               </a>
               {ex.key === activeExampleKey && (
-                <ul style={{ listStyle: 'none', paddingLeft: 12, margin: '6px 0 8px 0' }}>
+                <ul className="variants">
                   {ex.variants.map((v, i) => (
-                    <li key={v.name} style={{ marginBottom: 4 }}>
+                    <li key={v.name}>
                       <a
                         href={`#/${ex.key}/${i}`}
                         onClick={(e) => {
                           e.preventDefault();
                           navigate(ex.key, i);
                         }}
-                        style={{
-                          display: 'block',
-                          background: i === activeVariantIndex ? '#1118270f' : 'transparent',
-                          border: 0,
-                          padding: '6px 8px',
-                          borderRadius: 6,
-                          cursor: 'pointer',
-                          width: '100%',
-                          textAlign: 'left',
-                          color: 'inherit',
-                          textDecoration: 'none',
-                        }}
+                        className={i === activeVariantIndex ? 'active' : undefined}
                       >
                         {v.name}
                       </a>
@@ -709,10 +792,10 @@ export default function App() {
         </aside>
 
         {/* Content */}
-        <main style={{ flex: 1, padding: 12 }}>
-          <div style={{ marginBottom: 8 }}>
-            <h2 style={{ margin: '0 0 4px 0', fontSize: 16 }}>{activeExample.title}</h2>
-            <p style={{ margin: 0, color: '#555' }}>
+        <main className="main">
+          <div style={{ marginBottom: 10 }}>
+            <h2 className="heading">{activeExample.title}</h2>
+            <p className="note">
               {activeVariant.name}
               {activeVariant.note ? ` — ${activeVariant.note}` : ''}
             </p>
@@ -729,8 +812,23 @@ export default function App() {
               setOrder(o);
               setPreviewOrder(null);
             }}
-            style={{ height: '80vh', width: '100%' }}
+            style={{ height: '70vh', width: '100%' }}
           />
+
+          {/* Usage panel */}
+          <section className="usage" aria-label="Usage code">
+            <div className="usage-head">
+              <h3 className="usage-title">Usage</h3>
+              <div className="usage-actions">
+                <button className="ghost-btn" type="button" onClick={copyUsage}>
+                  Copy
+                </button>
+              </div>
+            </div>
+            <pre className="code">
+              <code ref={usageCodeRef} />
+            </pre>
+          </section>
         </main>
       </div>
     </div>
