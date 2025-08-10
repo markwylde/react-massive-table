@@ -157,11 +157,11 @@ export default function App() {
   const sortedCacheRef = React.useRef<Map<string, Row[]>>(new Map());
   const groupedCacheRef = React.useRef<Map<string, (Row | GroupHeader)[]>>(new Map());
   const getRows = React.useCallback(
-    (
+    async (
       start: number,
       end: number,
       req?: RowsRequest<Row | GroupHeader>,
-    ): GetRowsResult<Row | GroupHeader> => {
+    ): Promise<GetRowsResult<Row | GroupHeader>> => {
       const len = Math.max(0, end - start);
       const sorts = req?.sorts ?? [];
       const groupBy = req?.groupBy ?? [];
@@ -313,7 +313,11 @@ export default function App() {
 
   type AnyRow = Record<string, unknown> & { trace_id?: string | null; ts?: number };
   const getRowsLogs = React.useCallback(
-    (start: number, end: number, req?: RowsRequest<AnyRow>): GetRowsResult<AnyRow> => {
+    async (
+      start: number,
+      end: number,
+      req?: RowsRequest<AnyRow>,
+    ): Promise<GetRowsResult<AnyRow>> => {
       const sorts = (req?.sorts as Sort<AnyRow>[]) ?? [];
       // default to index desc (visible column) if no sorts
       const effectiveSorts =
@@ -588,6 +592,17 @@ export default function App() {
           },
         ],
       },
+      {
+        key: 'layout',
+        title: 'Layout (grid + flex)',
+        variants: [
+          {
+            name: 'Grid 2x2 + Flex 3 (auto height)',
+            props: {},
+            note: 'Each cell flex/grow with MassiveTable filling 100% height.',
+          },
+        ],
+      },
     ],
     [logsColumns, getRowsLogs, logsData.length, logsExpandedKeys],
   );
@@ -718,6 +733,125 @@ export default function App() {
     }
   }, [usageHtml]);
 
+  // ------------------------
+  // Layout demo (Grid + Flex)
+  // ------------------------
+  const LayoutDemo: React.FC = () => {
+    // Build distinct datasets by slicing the main demo data
+    const gridA = React.useMemo(() => data.slice(0, 2500), [data]);
+    const gridB = React.useMemo(() => data.slice(2500, 5000), [data]);
+    const gridC = React.useMemo(() => data.slice(5000, 7500), [data]);
+    const gridD = React.useMemo(() => data.slice(7500, 10000), [data]);
+
+    const flexA = React.useMemo(() => data.filter((r) => r.category === 'one'), [data]);
+    const flexB = React.useMemo(() => data.filter((r) => r.category === 'two'), [data]);
+    const flexC = React.useMemo(() => data.filter((r) => r.favourites.number <= 50), [data]);
+
+    const makeGetRows = React.useCallback(
+      <T extends object>(arr: T[]) =>
+        async (start: number, end: number): Promise<GetRowsResult<T>> => {
+          const len = Math.max(0, end - start);
+          return { rows: arr.slice(start, start + len), total: arr.length };
+        },
+      [],
+    );
+
+    const themeClass = mode === 'dark' ? darkTheme.theme : lightTheme.theme;
+
+    return (
+      <div>
+        <section className="layout-section">
+          <h3 className="layout-title">CSS Grid: 2 x 2 (auto-fill)</h3>
+          <div className="layout-grid">
+            <div className="cell">
+              <MassiveTable<Row>
+                key="grid-a"
+                classes={baseClasses}
+                className={themeClass}
+                columns={columns as unknown as ColumnDef<Row>[]}
+                getRows={makeGetRows<Row>(gridA)}
+                rowCount={gridA.length}
+                style={{ height: '100%', width: '100%' }}
+              />
+            </div>
+            <div className="cell">
+              <MassiveTable<Row>
+                key="grid-b"
+                classes={baseClasses}
+                className={themeClass}
+                columns={columns as unknown as ColumnDef<Row>[]}
+                getRows={makeGetRows<Row>(gridB)}
+                rowCount={gridB.length}
+                style={{ height: '100%', width: '100%' }}
+              />
+            </div>
+            <div className="cell">
+              <MassiveTable<Row>
+                key="grid-c"
+                classes={baseClasses}
+                className={themeClass}
+                columns={columns as unknown as ColumnDef<Row>[]}
+                getRows={makeGetRows<Row>(gridC)}
+                rowCount={gridC.length}
+                style={{ height: '100%', width: '100%' }}
+              />
+            </div>
+            <div className="cell">
+              <MassiveTable<Row>
+                key="grid-d"
+                classes={baseClasses}
+                className={themeClass}
+                columns={columns as unknown as ColumnDef<Row>[]}
+                getRows={makeGetRows<Row>(gridD)}
+                rowCount={gridD.length}
+                style={{ height: '100%', width: '100%' }}
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="layout-section">
+          <h3 className="layout-title">Flex: 3 cells (flex: 1 1 0)</h3>
+          <div className="layout-flex">
+            <div className="cell">
+              <MassiveTable<Row>
+                key="flex-a"
+                classes={baseClasses}
+                className={themeClass}
+                columns={columns as unknown as ColumnDef<Row>[]}
+                getRows={makeGetRows<Row>(flexA)}
+                rowCount={flexA.length}
+                style={{ height: '100%', width: '100%' }}
+              />
+            </div>
+            <div className="cell">
+              <MassiveTable<Row>
+                key="flex-b"
+                classes={baseClasses}
+                className={themeClass}
+                columns={columns as unknown as ColumnDef<Row>[]}
+                getRows={makeGetRows<Row>(flexB)}
+                rowCount={flexB.length}
+                style={{ height: '100%', width: '100%' }}
+              />
+            </div>
+            <div className="cell">
+              <MassiveTable<Row>
+                key="flex-c"
+                classes={baseClasses}
+                className={themeClass}
+                columns={columns as unknown as ColumnDef<Row>[]}
+                getRows={makeGetRows<Row>(flexC)}
+                rowCount={flexC.length}
+                style={{ height: '100%', width: '100%' }}
+              />
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  };
+
   return (
     <div className="app" data-theme={mode}>
       {/* Top bar */}
@@ -802,36 +936,41 @@ export default function App() {
               {activeVariant.note ? ` — ${activeVariant.note}` : ''}
             </p>
           </div>
-          <MassiveTable<Row | GroupHeader>
-            key={`${activeExample.key}:${activeVariantIndex}`}
-            getRows={getRows}
-            rowCount={rowCount}
-            columns={columns}
-            classes={baseClasses}
-            className={mode === 'dark' ? darkTheme.theme : lightTheme.theme}
-            {...activeVariant.props}
-            onColumnOrderPreviewChange={(o) => setPreviewOrder(o)}
-            onColumnOrderChange={(o) => {
-              setOrder(o);
-              setPreviewOrder(null);
-            }}
-            style={{ height: '70vh', width: '100%' }}
-          />
-
-          {/* Usage panel */}
-          <section className="usage" aria-label="Usage code">
-            <div className="usage-head">
-              <h3 className="usage-title">Usage</h3>
-              <div className="usage-actions">
-                <button className="ghost-btn" type="button" onClick={copyUsage}>
-                  Copy
-                </button>
-              </div>
-            </div>
-            <pre className="code">
-              <code ref={usageCodeRef} />
-            </pre>
-          </section>
+          {activeExample.key === 'layout' ? (
+            <LayoutDemo />
+          ) : (
+            <>
+              <MassiveTable<Row | GroupHeader>
+                key={`${activeExample.key}:${activeVariantIndex}`}
+                getRows={getRows}
+                rowCount={rowCount}
+                columns={columns}
+                classes={baseClasses}
+                className={mode === 'dark' ? darkTheme.theme : lightTheme.theme}
+                {...activeVariant.props}
+                onColumnOrderPreviewChange={(o) => setPreviewOrder(o)}
+                onColumnOrderChange={(o) => {
+                  setOrder(o);
+                  setPreviewOrder(null);
+                }}
+                style={{ height: '70vh', width: '100%' }}
+              />
+              {/* Usage panel */}
+              <section className="usage" aria-label="Usage code">
+                <div className="usage-head">
+                  <h3 className="usage-title">Usage</h3>
+                  <div className="usage-actions">
+                    <button className="ghost-btn" type="button" onClick={copyUsage}>
+                      Copy
+                    </button>
+                  </div>
+                </div>
+                <pre className="code">
+                  <code ref={usageCodeRef} />
+                </pre>
+              </section>
+            </>
+          )}
         </main>
       </div>
     </div>

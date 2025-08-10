@@ -37,6 +37,8 @@
   height: 100%;
   contain: content;
   background: var(--massive-table-bg);
+  /* Firefox scrollbar colors */
+  scrollbar-color: var(--massive-table-scrollbar-thumb) var(--massive-table-scrollbar-track);
 }
 
 /* Scrollbar polish */
@@ -49,6 +51,10 @@
   border-radius: 999px;
 }
 .viewport::-webkit-scrollbar-track {
+  background: var(--massive-table-scrollbar-track);
+}
+/* Corner where horizontal and vertical scrollbars meet */
+.viewport::-webkit-scrollbar-corner {
   background: var(--massive-table-scrollbar-track);
 }
 
