@@ -438,6 +438,11 @@ export default function App() {
         ],
       },
       {
+        key: 'visibility',
+        title: 'Column Visibility',
+        variants: [{ name: 'Toggle Columns', props: {} }],
+      },
+      {
         key: 'logs',
         title: 'Logs (inline group)',
         variants: [
@@ -852,6 +857,71 @@ export default function App() {
     );
   };
 
+  // ------------------------
+  // Column Visibility demo
+  // ------------------------
+  const VisibilityDemo: React.FC = () => {
+    const themeClass = mode === 'dark' ? darkTheme.theme : lightTheme.theme;
+    const allKeys = React.useMemo(() => columns.map((c) => JSON.stringify(c.path)), []);
+    const [visibleKeys, setVisibleKeys] = React.useState<string[]>(allKeys);
+
+    const visibleColumns = React.useMemo(() => {
+      const set = new Set(visibleKeys);
+      return (columns as unknown as ColumnDef<Row | GroupHeader>[]).filter((c) =>
+        set.has(JSON.stringify(c.path)),
+      );
+    }, [visibleKeys]);
+
+    const toggleKey = (key: string) => {
+      setVisibleKeys((prev) => {
+        const has = prev.includes(key);
+        if (has) {
+          // Ensure at least one column remains visible
+          if (prev.length <= 1) return prev;
+          return prev.filter((k) => k !== key);
+        }
+        return [...prev, key];
+      });
+    };
+
+    return (
+      <div>
+        <div style={{ marginBottom: 12 }}>
+          <h3 className="usage-title" style={{ margin: 0 }}>
+            Toggle Columns
+          </h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
+            {columns.map((c) => {
+              const key = JSON.stringify(c.path);
+              const checked = visibleKeys.includes(key);
+              const disable = checked && visibleKeys.length <= 1;
+              return (
+                <label key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={disable}
+                    onChange={() => toggleKey(key)}
+                  />
+                  <span>{c.title ?? key}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+        <MassiveTable<Row | GroupHeader>
+          key={`visibility:${visibleColumns.length}`}
+          getRows={getRows}
+          rowCount={rowCount}
+          columns={visibleColumns}
+          classes={baseClasses}
+          className={themeClass}
+          style={{ height: '70vh', width: '100%' }}
+        />
+      </div>
+    );
+  };
+
   return (
     <div className="app" data-theme={mode}>
       {/* Top bar */}
@@ -938,6 +1008,8 @@ export default function App() {
           </div>
           {activeExample.key === 'layout' ? (
             <LayoutDemo />
+          ) : activeExample.key === 'visibility' ? (
+            <VisibilityDemo />
           ) : (
             <>
               <MassiveTable<Row | GroupHeader>
