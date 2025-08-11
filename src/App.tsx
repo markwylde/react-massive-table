@@ -29,23 +29,10 @@ type GroupHeader = {
 };
 
 const SEED = 1337;
-// Use a smaller dataset in the demo so client-side sorting is fast
-const rowCount = 10_000;
+// Default row count (user-selectable)
+const DEFAULT_ROW_COUNT = 10_000;
 
-function makeRow(i: number): Row {
-  // Seed per row so we can generate deterministically on demand
-  const c = new Chance(`${SEED}-${i}`);
-  return {
-    index: i + 1,
-    firstName: c.first(),
-    lastName: c.last(),
-    category: c.pick(['one', 'two', null]),
-    favourites: {
-      colour: c.color({ format: 'name' }),
-      number: c.integer({ min: 1, max: 100 }),
-    },
-  };
-}
+// makeRow moved to worker for off-thread generation
 
 const columns: ColumnDef<Row | GroupHeader>[] = [
   { path: ['index'], title: '#', width: 80, align: 'right' },
@@ -125,6 +112,21 @@ export default function App() {
     } catch {}
   }, [mode]);
 
+  // Row count picker options
+  const rowOptions = React.useMemo(
+    () => [
+      { label: '10 rows', value: 10 },
+      { label: '100 rows', value: 100 },
+      { label: '1,000 rows', value: 1_000 },
+      { label: '10,000 rows (default)', value: 10_000 },
+      { label: '100,000 rows', value: 100_000 },
+      { label: '250,000 rows (slow)', value: 250_000 },
+      { label: '500,000 rows (slow)', value: 500_000 },
+      { label: '1,000,000 rows (slow)', value: 1_000_000 },
+    ],
+    [],
+  );
+
   // If the user hasn't explicitly chosen a theme, follow system changes
   React.useEffect(() => {
     let hasSaved = false;
@@ -150,12 +152,85 @@ export default function App() {
       }
     };
   }, []);
-  // Build demo data in-memory (deterministic via Chance + SEED)
-  const data = React.useMemo(() => Array.from({ length: rowCount }, (_, i) => makeRow(i)), []);
+  // Dataset state driven by Web Worker generation
+  const [rowCount, setRowCount] = React.useState<number>(DEFAULT_ROW_COUNT);
+  const [data, setData] = React.useState<Row[]>([]);
+  const [dataVersion, setDataVersion] = React.useState<number>(0);
+  const [isGenerating, setIsGenerating] = React.useState<boolean>(false);
+  const workerRef = React.useRef<Worker | null>(null);
+  const generateRowsSync = React.useCallback((count: number): Row[] => {
+    const rows: Row[] = new Array(count);
+    for (let i = 0; i < count; i++) {
+      const c = new Chance(`${SEED}-${i}`);
+      rows[i] = {
+        index: i + 1,
+        firstName: c.first(),
+        lastName: c.last(),
+        category: c.pick(['one', 'two', null]),
+        favourites: {
+          colour: c.color({ format: 'name' }),
+          number: c.integer({ min: 1, max: 100 }),
+        },
+      };
+    }
+    return rows;
+  }, []);
+
+  const startGeneration = React.useCallback((count: number) => {
+    setIsGenerating(true);
+    setRowCount(count);
+    try {
+      if (workerRef.current) {
+        workerRef.current.terminate();
+        workerRef.current = null;
+      }
+    } catch {}
+    // Fallback to synchronous generation in non-worker environments (tests/SSR)
+    if (typeof Worker === 'undefined') {
+      const rows = generateRowsSync(count);
+      setData(rows);
+      setDataVersion((v) => v + 1);
+      setIsGenerating(false);
+      return;
+    }
+    try {
+      const w = new Worker(new URL('./dataWorker.ts', import.meta.url), { type: 'module' });
+      workerRef.current = w;
+      w.onmessage = (ev: MessageEvent<{ type: string; rows: Row[] }>) => {
+        if (ev.data?.type === 'generated') {
+          setData(ev.data.rows);
+          setDataVersion((v) => v + 1);
+          setIsGenerating(false);
+        }
+      };
+      w.postMessage({ type: 'generate', count, seed: SEED });
+    } catch (_err) {
+      // If worker creation fails (e.g., test env), do sync generation
+      const rows = generateRowsSync(count);
+      setData(rows);
+      setDataVersion((v) => v + 1);
+      setIsGenerating(false);
+    }
+  }, []);
+
+  // Kick off initial generation
+  React.useEffect(() => {
+    startGeneration(DEFAULT_ROW_COUNT);
+    return () => {
+      try {
+        workerRef.current?.terminate();
+      } catch {}
+    };
+  }, [startGeneration]);
 
   // Cache sorted arrays per sorts signature
   const sortedCacheRef = React.useRef<Map<string, Row[]>>(new Map());
   const groupedCacheRef = React.useRef<Map<string, (Row | GroupHeader)[]>>(new Map());
+  // Clear caches when data changes
+  React.useEffect(() => {
+    sortedCacheRef.current.clear();
+    groupedCacheRef.current.clear();
+  }, [data]);
   const getRows = React.useCallback(
     async (
       start: number,
@@ -910,9 +985,9 @@ export default function App() {
           </div>
         </div>
         <MassiveTable<Row | GroupHeader>
-          key={`visibility:${visibleColumns.length}`}
+          key={`visibility:${visibleColumns.length}:${dataVersion}`}
           getRows={getRows}
-          rowCount={rowCount}
+          rowCount={data.length}
           columns={visibleColumns}
           classes={baseClasses}
           className={themeClass}
@@ -937,6 +1012,27 @@ export default function App() {
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span className="subtle">Rows</span>
+          <select
+            value={rowCount}
+            onChange={(e) => startGeneration(Number(e.target.value))}
+            disabled={isGenerating}
+            aria-busy={isGenerating}
+            style={{
+              padding: '6px 10px',
+              borderRadius: 8,
+              border: '1px solid var(--border)',
+              background: 'transparent',
+              color: 'inherit',
+            }}
+          >
+            {rowOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          {isGenerating && <output className="spinner" aria-live="polite" />}
           <span className="subtle">Theme</span>
           <fieldset className="segmented" aria-label="Theme toggle">
             <button
@@ -1013,9 +1109,9 @@ export default function App() {
           ) : (
             <>
               <MassiveTable<Row | GroupHeader>
-                key={`${activeExample.key}:${activeVariantIndex}`}
+                key={`${activeExample.key}:${activeVariantIndex}:${dataVersion}`}
                 getRows={getRows}
-                rowCount={rowCount}
+                rowCount={data.length}
                 columns={columns}
                 classes={baseClasses}
                 className={mode === 'dark' ? darkTheme.theme : lightTheme.theme}
