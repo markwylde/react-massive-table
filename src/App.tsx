@@ -1,3 +1,4 @@
+import Chance from 'chance';
 import Prism from 'prismjs';
 import * as React from 'react';
 import 'prismjs/components/prism-typescript';
@@ -157,6 +158,23 @@ export default function App() {
   const [dataVersion, setDataVersion] = React.useState<number>(0);
   const [isGenerating, setIsGenerating] = React.useState<boolean>(false);
   const workerRef = React.useRef<Worker | null>(null);
+  const generateRowsSync = React.useCallback((count: number): Row[] => {
+    const rows: Row[] = new Array(count);
+    for (let i = 0; i < count; i++) {
+      const c = new Chance(`${SEED}-${i}`);
+      rows[i] = {
+        index: i + 1,
+        firstName: c.first(),
+        lastName: c.last(),
+        category: c.pick(['one', 'two', null]),
+        favourites: {
+          colour: c.color({ format: 'name' }),
+          number: c.integer({ min: 1, max: 100 }),
+        },
+      };
+    }
+    return rows;
+  }, []);
 
   const startGeneration = React.useCallback((count: number) => {
     setIsGenerating(true);
@@ -167,16 +185,32 @@ export default function App() {
         workerRef.current = null;
       }
     } catch {}
-    const w = new Worker(new URL('./dataWorker.ts', import.meta.url), { type: 'module' });
-    workerRef.current = w;
-    w.onmessage = (ev: MessageEvent<{ type: string; rows: Row[] }>) => {
-      if (ev.data?.type === 'generated') {
-        setData(ev.data.rows);
-        setDataVersion((v) => v + 1);
-        setIsGenerating(false);
-      }
-    };
-    w.postMessage({ type: 'generate', count, seed: SEED });
+    // Fallback to synchronous generation in non-worker environments (tests/SSR)
+    if (typeof Worker === 'undefined') {
+      const rows = generateRowsSync(count);
+      setData(rows);
+      setDataVersion((v) => v + 1);
+      setIsGenerating(false);
+      return;
+    }
+    try {
+      const w = new Worker(new URL('./dataWorker.ts', import.meta.url), { type: 'module' });
+      workerRef.current = w;
+      w.onmessage = (ev: MessageEvent<{ type: string; rows: Row[] }>) => {
+        if (ev.data?.type === 'generated') {
+          setData(ev.data.rows);
+          setDataVersion((v) => v + 1);
+          setIsGenerating(false);
+        }
+      };
+      w.postMessage({ type: 'generate', count, seed: SEED });
+    } catch (_err) {
+      // If worker creation fails (e.g., test env), do sync generation
+      const rows = generateRowsSync(count);
+      setData(rows);
+      setDataVersion((v) => v + 1);
+      setIsGenerating(false);
+    }
   }, []);
 
   // Kick off initial generation
