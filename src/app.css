@@ -236,6 +236,15 @@ body {
   color: #94a3b8;
 }
 
+/* Prism override: remove light background on operators in dark mode */
+[data-theme="dark"] .code .token.operator,
+[data-theme="dark"] .code .token.entity,
+[data-theme="dark"] .code .token.url,
+[data-theme="dark"] .code .language-css .token.string,
+[data-theme="dark"] .code .style .token.string {
+  background: transparent;
+}
+
 /* Utility */
 .spacer {
   flex: 1;
