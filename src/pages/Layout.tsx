@@ -30,12 +30,14 @@ export default function LayoutPage() {
       <section className="layout-section">
         <h3 className="layout-title">CSS Grid: 2 x 2 (auto-fill)</h3>
         <div className="layout-grid">
-          {[
-            ['gridA', gridA],
-            ['gridB', gridB],
-            ['gridC', gridC],
-            ['gridD', gridD],
-          ].map(([name, grid]) => (
+          {(
+            [
+              ['gridA', gridA],
+              ['gridB', gridB],
+              ['gridC', gridC],
+              ['gridD', gridD],
+            ] as [string, Row[]][]
+          ).map(([name, grid]) => (
             <div key={name as string} className="cell">
               <MassiveTable<Row>
                 classes={baseClasses}
@@ -53,11 +55,13 @@ export default function LayoutPage() {
       <section className="layout-section">
         <h3 className="layout-title">Flex: 3 cells (flex: 1 1 0)</h3>
         <div className="layout-flex">
-          {[
-            ['flexA', flexA],
-            ['flexB', flexB],
-            ['flexC', flexC],
-          ].map(([name, arr]) => (
+          {(
+            [
+              ['flexA', flexA],
+              ['flexB', flexB],
+              ['flexC', flexC],
+            ] as [string, Row[]][]
+          ).map(([name, arr]) => (
             <div key={name as string} className="cell">
               <MassiveTable<Row>
                 classes={baseClasses}
