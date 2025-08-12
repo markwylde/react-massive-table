@@ -1,2 +1,5 @@
 dist
+# Keep top-level demo folder ignored, but include src/demo used by the app
 demo
+!src/demo/
+!src/demo/**
