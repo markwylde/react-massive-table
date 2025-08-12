@@ -326,21 +326,24 @@ export default function App() {
   ];
 
   return (
-    <div>
-      <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
-        {navItems.map((n) => (
-          <a
-            key={n.key}
-            href={`#/${n.key}`}
-            style={{
-              textDecoration: route.page === n.key ? 'underline' : 'none',
-            }}
-          >
-            {n.label}
-          </a>
-        ))}
-      </nav>
-      {pageEl}
+    <div className="app">
+      <header className="topbar">
+        <div className="brand">
+          <h1>Massive Table</h1>
+        </div>
+        <nav className="topbar-actions">
+          {navItems.map((n) => (
+            <a
+              key={n.key}
+              href={`#/${n.key}`}
+              className={`nav-title${route.page === n.key ? ' active' : ''}`}
+            >
+              {n.label}
+            </a>
+          ))}
+        </nav>
+      </header>
+      <main className="main">{pageEl}</main>
     </div>
   );
 }
