@@ -1,7 +1,7 @@
 import * as React from 'react';
+import type { GroupHeader, Row } from '../demoTypes';
 import MassiveTable from '../lib/MassiveTable';
 import type { ColumnDef, GetRowsResult, RowsRequest } from '../lib/types';
-import type { Row, GroupHeader } from '../demoTypes';
 
 interface Props {
   columns: ColumnDef<Row | GroupHeader>[];
@@ -24,7 +24,9 @@ export default function CustomRenderPage({
 }: Props) {
   const pillColumns = React.useMemo(() => {
     const cols = columns.map((c) => ({ ...c }));
-    const idx = cols.findIndex((c) => JSON.stringify(c.path) === JSON.stringify(['favourites', 'number']));
+    const idx = cols.findIndex(
+      (c) => JSON.stringify(c.path) === JSON.stringify(['favourites', 'number']),
+    );
     if (idx >= 0) {
       cols[idx] = {
         ...cols[idx],
@@ -65,4 +67,3 @@ export default function CustomRenderPage({
     />
   );
 }
-

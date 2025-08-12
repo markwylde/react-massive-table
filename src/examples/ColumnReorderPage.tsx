@@ -1,7 +1,6 @@
-import * as React from 'react';
+import type { GroupHeader, Row } from '../demoTypes';
 import MassiveTable from '../lib/MassiveTable';
 import type { ColumnDef, GetRowsResult, RowsRequest } from '../lib/types';
-import type { Row, GroupHeader } from '../demoTypes';
 
 interface Props {
   columns: ColumnDef<Row | GroupHeader>[];
@@ -33,4 +32,3 @@ export default function ColumnReorderPage({
     />
   );
 }
-

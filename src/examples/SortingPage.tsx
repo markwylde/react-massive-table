@@ -1,7 +1,6 @@
-import * as React from 'react';
+import type { GroupHeader, Row } from '../demoTypes';
 import MassiveTable from '../lib/MassiveTable';
 import type { ColumnDef, GetRowsResult, RowsRequest, Sort } from '../lib/types';
-import type { Row, GroupHeader } from '../demoTypes';
 
 interface Props {
   columns: ColumnDef<Row | GroupHeader>[];
@@ -15,13 +14,7 @@ interface Props {
   classes: Record<string, string>;
 }
 
-export default function SortingPage({
-  columns,
-  getRows,
-  rowCount,
-  className,
-  classes,
-}: Props) {
+export default function SortingPage({ columns, getRows, rowCount, className, classes }: Props) {
   return (
     <MassiveTable<Row | GroupHeader>
       columns={columns}
@@ -34,4 +27,3 @@ export default function SortingPage({
     />
   );
 }
-

@@ -1,7 +1,7 @@
 import * as React from 'react';
+import type { GroupHeader, Row } from '../demoTypes';
 import MassiveTable from '../lib/MassiveTable';
 import type { ColumnDef, GetRowsResult } from '../lib/types';
-import type { Row, GroupHeader } from '../demoTypes';
 
 interface Props {
   data: Row[];
@@ -122,4 +122,3 @@ export default function LayoutPage({ data, columns, className, classes }: Props)
     </div>
   );
 }
-

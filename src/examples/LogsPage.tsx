@@ -1,13 +1,7 @@
 import * as React from 'react';
 import MassiveTable from '../lib/MassiveTable';
-import type {
-  ColumnDef,
-  GetRowsResult,
-  RowsRequest,
-  Sort,
-} from '../lib/types';
+import type { ColumnDef, GetRowsResult, RowsRequest, Sort } from '../lib/types';
 import { getByPath } from '../lib/utils';
-import type { Row, GroupHeader } from '../demoTypes';
 
 interface Props {
   className: string;
@@ -56,7 +50,7 @@ function buildLogs(): LogRow[] {
 }
 
 export default function LogsPage({ className, classes, defaultSortDir }: Props) {
-  const logsData = React.useMemo(() => buildLogs(), []);
+  const logsData = React.useMemo<LogRowWithMeta[]>(() => buildLogs() as LogRowWithMeta[], []);
   const [expandedKeys, setExpandedKeys] = React.useState<string[]>([]);
 
   const logsColumns: ColumnDef<LogRowWithMeta>[] = React.useMemo(
@@ -92,24 +86,22 @@ export default function LogsPage({ className, classes, defaultSortDir }: Props) 
     [],
   );
 
-  type AnyRow = Record<string, unknown> & { trace_id?: string | null; ts?: number };
   const getRowsLogs = React.useCallback(
     async (
       start: number,
       end: number,
-      req?: RowsRequest<AnyRow>,
-    ): Promise<GetRowsResult<AnyRow>> => {
-      const sorts = (req?.sorts as Sort<AnyRow>[]) ?? [];
+      req?: RowsRequest<LogRowWithMeta>,
+    ): Promise<GetRowsResult<LogRowWithMeta>> => {
+      const sorts = req?.sorts ?? [];
       const effectiveSorts =
-        sorts.length > 0 ? sorts : ([{ path: ['index'], dir: defaultSortDir }] as Sort<AnyRow>[]);
-      const cmp = makeComparator<AnyRow>(effectiveSorts);
+        sorts.length > 0
+          ? sorts
+          : ([{ path: ['index'], dir: defaultSortDir }] as Sort<LogRowWithMeta>[]);
+      const cmp = makeComparator<LogRowWithMeta>(effectiveSorts);
 
-      const sorted = logsData
-        .map((r) => r as AnyRow)
-        .slice()
-        .sort(cmp);
+      const sorted = logsData.slice().sort(cmp);
 
-      const byTrace = new Map<string, AnyRow[]>();
+      const byTrace = new Map<string, LogRowWithMeta[]>();
       for (const r of sorted) {
         const tid = r.trace_id as string | null;
         if (tid) {
@@ -119,8 +111,10 @@ export default function LogsPage({ className, classes, defaultSortDir }: Props) 
         }
       }
 
-      type Unit = { kind: 'row'; row: AnyRow } | { kind: 'trace'; id: string; rows: AnyRow[]; anchor: AnyRow };
-      const usedInTrace = new Set<AnyRow>();
+      type Unit =
+        | { kind: 'row'; row: LogRowWithMeta }
+        | { kind: 'trace'; id: string; rows: LogRowWithMeta[]; anchor: LogRowWithMeta };
+      const usedInTrace = new Set<LogRowWithMeta>();
       const traceUnits: Unit[] = [];
       for (const [id, rows] of byTrace.entries()) {
         const anchor = rows[0];
@@ -139,7 +133,7 @@ export default function LogsPage({ className, classes, defaultSortDir }: Props) 
       units.sort(unitCmp);
 
       const expandedSet = new Set(req?.groupState?.expandedKeys ?? expandedKeys);
-      const out: AnyRow[] = [];
+      const out: LogRowWithMeta[] = [];
       for (const u of units) {
         if (u.kind === 'row') {
           out.push(u.row);
@@ -175,16 +169,12 @@ export default function LogsPage({ className, classes, defaultSortDir }: Props) 
   );
 
   return (
-    <MassiveTable<AnyRow>
-      columns={logsColumns as unknown as ColumnDef<Row | GroupHeader>[]}
-      getRows={getRowsLogs as unknown as (
-        start: number,
-        end: number,
-        req?: RowsRequest<Row | GroupHeader>,
-      ) => Promise<GetRowsResult<Row | GroupHeader>>}
+    <MassiveTable<LogRowWithMeta>
+      columns={logsColumns}
+      getRows={getRowsLogs}
       rowCount={logsData.length}
       enableSort
-      defaultSorts={[{ path: ['index'], dir: defaultSortDir }] as unknown as Sort[]}
+      defaultSorts={[{ path: ['index'], dir: defaultSortDir }] as Sort<LogRowWithMeta>[]}
       expandedKeys={expandedKeys}
       onExpandedKeysChange={setExpandedKeys}
       className={className}

@@ -1,26 +1,21 @@
 import Chance from 'chance';
 import * as React from 'react';
+import type { GroupHeader, Row } from './demoTypes';
+import AllFeaturesPage from './examples/AllFeaturesPage';
 import BasicPage from './examples/BasicPage';
-import ColumnVisibilityPage from './examples/ColumnVisibilityPage';
-import CustomRenderPage from './examples/CustomRenderPage';
-import SortingPage from './examples/SortingPage';
 import ColumnReorderPage from './examples/ColumnReorderPage';
 import ColumnResizePage from './examples/ColumnResizePage';
+import ColumnVisibilityPage from './examples/ColumnVisibilityPage';
+import CustomRenderPage from './examples/CustomRenderPage';
 import GroupingPage from './examples/GroupingPage';
-import AllFeaturesPage from './examples/AllFeaturesPage';
 import LayoutPage from './examples/LayoutPage';
 import LogsPage from './examples/LogsPage';
+import SortingPage from './examples/SortingPage';
 import baseClasses from './lib/styles/base.module.css';
 import darkTheme from './lib/styles/dark.module.css';
 import lightTheme from './lib/styles/light.module.css';
-import type {
-  ColumnDef,
-  GetRowsResult,
-  RowsRequest,
-  Sort,
-} from './lib/types';
+import type { ColumnDef, GetRowsResult, RowsRequest } from './lib/types';
 import { getByPath } from './lib/utils';
-import type { Row, GroupHeader } from './demoTypes';
 
 const SEED = 1337;
 const DEFAULT_ROW_COUNT = 10_000;
@@ -53,7 +48,7 @@ function generateRows(count: number): Row[] {
 }
 
 export default function App() {
-  const [mode, setMode] = React.useState<'light' | 'dark'>('light');
+  const [mode] = React.useState<'light' | 'dark'>('light');
   const [data] = React.useState<Row[]>(() => generateRows(DEFAULT_ROW_COUNT));
 
   const sortedCacheRef = React.useRef<Map<string, Row[]>>(new Map());
@@ -302,12 +297,7 @@ export default function App() {
       break;
     case 'layout':
       pageEl = (
-        <LayoutPage
-          data={data}
-          columns={columns}
-          className={themeClass}
-          classes={baseClasses}
-        />
+        <LayoutPage data={data} columns={columns} className={themeClass} classes={baseClasses} />
       );
       break;
     default:
