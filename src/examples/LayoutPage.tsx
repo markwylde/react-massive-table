@@ -2,6 +2,7 @@ import * as React from 'react';
 import type { GroupHeader, Row } from '../demoTypes';
 import MassiveTable from '../lib/MassiveTable';
 import type { ColumnDef, GetRowsResult } from '../lib/types';
+import './layout.css';
 
 interface Props {
   data: Row[];

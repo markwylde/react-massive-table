@@ -1,0 +1,36 @@
+/* Layout demo */
+.layout-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+  background: var(--soft);
+  margin-bottom: 14px;
+}
+.layout-title {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+.layout-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 10px;
+  height: 60vh; /* provides room to stress auto-fill */
+  min-height: 0;
+}
+.layout-grid > .cell,
+.layout-flex > .cell {
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+}
+.layout-flex {
+  display: flex;
+  gap: 10px;
+  height: 40vh;
+  min-height: 0;
+}
+.layout-flex > .cell {
+  flex: 1 1 0;
+}
