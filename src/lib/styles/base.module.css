@@ -168,6 +168,30 @@
 .headerCellClickable {
   cursor: pointer;
 }
+.dimColumn {
+  /* Ensure positioning context for overlay */
+  position: relative;
+}
+.dimColumn::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--massive-table-dim-overlay, rgba(0, 0, 0, 0.1));
+  pointer-events: none; /* allow interactions through */
+}
+/* Expand overlay to include row vertical padding */
+.row .dimColumn::after {
+  top: calc(var(--massive-table-cell-py) * -1);
+  bottom: calc(var(--massive-table-cell-py) * -1);
+}
+/* Expand overlay to include header vertical padding */
+.header .dimColumn::after {
+  top: calc(var(--massive-table-header-cell-py) * -1);
+  bottom: calc(var(--massive-table-header-cell-py) * -1);
+}
 .headerCell:focus-visible {
   outline: none;
   box-shadow: var(--massive-table-focus-ring);
@@ -196,6 +220,12 @@
   line-height: 1;
   padding: 2px 6px;
   cursor: pointer;
+}
+/* Hide header group toggle on desktop; keep visible on mobile */
+@media (min-width: 901px) {
+  .headerGroupBtn {
+    display: none;
+  }
 }
 .headerHint {
   margin-left: auto;
@@ -266,6 +296,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  position: relative; /* allow overlay to cover full cell */
 }
 
 .groupRow {
@@ -284,4 +315,18 @@
   font-size: 12px;
   width: 22px;
   height: 22px;
+}
+
+/* Column dim overlays */
+.overlayLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4; /* above content */
+}
+.overlayCol {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--massive-table-dim-overlay, rgba(0, 0, 0, 0.1));
 }

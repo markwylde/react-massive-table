@@ -89,6 +89,23 @@ body {
   gap: 10px;
   margin-left: auto;
 }
+/* Icon button (e.g., GitHub) */
+.topbar-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0; /* prevent extra inline height */
+  color: var(--fg);
+  text-decoration: none;
+}
+.topbar-icon:hover {
+  color: var(--accent);
+}
+.topbar-icon svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
 .topbar-sub {
   display: flex;
   align-items: center;
@@ -185,18 +202,31 @@ body {
 /* Sidebar */
 .sidebar {
   border-right: 1px solid var(--border);
-  padding: 12px;
+  padding: 14px;
   overflow: auto;
 }
+.sidebar .section-title {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 .nav-group {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 .nav-title {
   display: block;
   text-decoration: none;
   color: inherit;
-  font-weight: 700;
-  padding: 6px 4px;
+  font-weight: 600;
+  padding: 8px 10px;
+  margin: 1px 0;
   border-radius: 6px;
 }
 .nav-title.active {
@@ -232,6 +262,33 @@ body {
 .note {
   margin: 0;
   color: var(--muted);
+}
+
+/* Variant tabs (per-example controls) */
+.variant-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 6px 0 10px 0;
+}
+.variant-tabs button {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--fg);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.variant-tabs button:hover {
+  background: color-mix(in oklab, var(--fg) 6%, transparent);
+}
+.variant-tabs button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 40%, transparent);
+}
+.variant-tabs button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 
 /* Usage panel */
@@ -283,12 +340,84 @@ body {
   line-height: 1.5;
   overflow: auto;
   background: var(--soft);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+/* Force Prism blocks to use themed background */
+pre[class*="language-"],
+code[class*="language-"] {
+  background: var(--soft) !important;
+  color: var(--fg);
+  text-shadow: none !important;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+/* ensure nested spans don't pick up bold weights */
+pre[class*="language-"] *,
+code[class*="language-"] * {
+  font-weight: 400 !important;
+}
+
+/* Dark theme Prism overrides: ensure readable foregrounds */
+[data-theme="dark"] pre[class*="language-"],
+[data-theme="dark"] code[class*="language-"] {
+  color: var(--fg) !important;
+}
+[data-theme="dark"] .token.comment,
+[data-theme="dark"] .token.prolog,
+[data-theme="dark"] .token.doctype,
+[data-theme="dark"] .token.cdata {
+  color: var(--muted) !important;
+}
+[data-theme="dark"] .token.punctuation {
+  color: #a1a9b6 !important;
+}
+[data-theme="dark"] .token.property,
+[data-theme="dark"] .token.tag,
+[data-theme="dark"] .token.constant,
+[data-theme="dark"] .token.symbol,
+[data-theme="dark"] .token.deleted {
+  color: #fca5a5 !important; /* red-300 */
+}
+[data-theme="dark"] .token.boolean,
+[data-theme="dark"] .token.number {
+  color: #d8b4fe !important; /* purple-300 */
+}
+[data-theme="dark"] .token.selector,
+[data-theme="dark"] .token.attr-name,
+[data-theme="dark"] .token.string,
+[data-theme="dark"] .token.char,
+[data-theme="dark"] .token.builtin,
+[data-theme="dark"] .token.inserted {
+  color: #bef264 !important; /* lime-300 */
+}
+[data-theme="dark"] .token.operator,
+[data-theme="dark"] .token.entity,
+[data-theme="dark"] .token.url {
+  color: #93c5fd !important; /* sky-300 */
+  background: transparent !important;
+}
+[data-theme="dark"] .token.atrule,
+[data-theme="dark"] .token.attr-value,
+[data-theme="dark"] .token.keyword {
+  color: #93c5fd !important; /* sky-300 */
+  font-weight: 400 !important;
+}
+[data-theme="dark"] .token.function,
+[data-theme="dark"] .token.class-name {
+  color: #fbbf24 !important; /* amber-400 */
+}
+[data-theme="dark"] .token.regex,
+[data-theme="dark"] .token.important,
+[data-theme="dark"] .token.variable {
+  color: #f472b6 !important; /* pink-400 */
 }
 
 /* Syntax highlighting */
 .code .tok-kw {
   color: #2563eb;
-  font-weight: 600;
 }
 .code .tok-str {
   color: #16a34a;

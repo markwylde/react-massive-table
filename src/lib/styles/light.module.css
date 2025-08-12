@@ -13,6 +13,7 @@
   --massive-table-row-stripe: #fafbfc;
   --massive-table-focus-ring: 0 0 0 2px rgba(59, 130, 246, 0.6);
   --massive-table-inline-group-bg: rgba(59, 130, 246, 0.08);
+  --massive-table-dim-overlay: rgba(0, 0, 0, 0.1);
   /* Optional: theme can set the first row min height for measurement */
   --massive-table-first-row-min-h: 32px;
 }

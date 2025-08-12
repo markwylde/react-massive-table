@@ -197,6 +197,8 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
   // Capture widths at drag start and only remap widths to follow
   // columns after a successful drop (to keep preview simple).
   const dragStartWidthsRef = React.useRef<Map<string, number> | null>(null);
+  // Track which column index is currently being dragged (for dimming others)
+  const [draggingColIndex, setDraggingColIndex] = React.useState<number | null>(null);
 
   // Fetch rows for visible window + overscan
   const requestId = React.useRef(0);
@@ -297,6 +299,18 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
     return hasInlineGroup ? base + inlineColWidth : base;
   }, [colWidths, hasInlineGroup]);
 
+  // Precompute overlay positions (left offsets + widths) for column-dim layer
+  const overlayMeta = React.useMemo(() => {
+    const widths = hasInlineGroup ? [inlineColWidth, ...colWidths] : colWidths;
+    const lefts: number[] = new Array(widths.length);
+    let acc = 0;
+    for (let i = 0; i < widths.length; i++) {
+      lefts[i] = acc;
+      acc += widths[i];
+    }
+    return { widths, lefts } as const;
+  }, [colWidths, hasInlineGroup]);
+
   // Drag & drop handlers for columns
   const dragIndex = React.useRef<number | null>(null);
   // Track dragging state via refs; remove unused state variables
@@ -306,6 +320,7 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
   const handleHeaderDragStart = (idx: number) => (e: React.DragEvent) => {
     dragIndex.current = idx;
     isDraggingRef.current = true;
+    setDraggingColIndex(idx);
     endedByDropRef.current = false;
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', String(idx));
@@ -345,6 +360,7 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
     if (from != null && from !== idx) {
       move(from, idx);
       dragIndex.current = idx;
+      setDraggingColIndex(idx);
     }
   };
   const handleHeaderDrop = (idx: number) => (e: React.DragEvent) => {
@@ -356,6 +372,7 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
     dragIndex.current = null;
     isDraggingRef.current = false;
     endedByDropRef.current = true;
+    setDraggingColIndex(null);
     // After drop, remap widths to follow the columns by identity
     const map = dragStartWidthsRef.current;
     if (map) {
@@ -374,6 +391,7 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
       notifyFinalOrder();
     }
     endedByDropRef.current = false;
+    setDraggingColIndex(null);
     suppressClickRef.current = Date.now();
   };
 
@@ -448,6 +466,7 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
         if (dx > 6 && dx > dy) {
           touchDragRef.current.active = true;
           suppressClickRef.current = Date.now();
+          setDraggingColIndex(touchDragRef.current.idx);
         } else {
           return;
         }
@@ -458,6 +477,7 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
       if (Number.isFinite(from) && Number.isFinite(targetIdx) && from !== targetIdx) {
         move(from, targetIdx);
         touchDragRef.current.idx = targetIdx;
+        setDraggingColIndex(targetIdx);
       }
     };
     const onEnd = () => {
@@ -467,6 +487,7 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
         notifyFinalOrder();
         suppressClickRef.current = Date.now();
       }
+      setDraggingColIndex(null);
       touchDragRef.current = null;
     };
     window.addEventListener('touchmove', onMove as EventListener, { passive: false });
@@ -955,6 +976,23 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
               </button>
             );
           })}
+          {draggingColIndex !== null && (
+            <div className={classes.overlayLayer} aria-hidden>
+              {overlayMeta.widths.map((w, j) => {
+                const isDataCol = hasInlineGroup ? j > 0 : true;
+                const dataIdx = hasInlineGroup ? j - 1 : j;
+                const dim = isDataCol && dataIdx !== draggingColIndex;
+                if (!dim) return null;
+                return (
+                  <div
+                    key={`hdr-ov:${hasInlineGroup && j === 0 ? '__inline' : JSON.stringify(columnsOrdered[dataIdx]?.path)}`}
+                    className={classes.overlayCol}
+                    style={{ left: overlayMeta.lefts[j], width: w }}
+                  />
+                );
+              })}
+            </div>
+          )}
         </div>
         <div className={classes.rows} style={{ height: contentHeight, width: totalWidth }}>
           {Array.from({ length: Math.max(0, end - start) }).map((_, i) => {
@@ -1165,6 +1203,23 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
               </React.Fragment>
             );
           })}
+          {draggingColIndex !== null && (
+            <div className={classes.overlayLayer} aria-hidden>
+              {overlayMeta.widths.map((w, j) => {
+                const isDataCol = hasInlineGroup ? j > 0 : true;
+                const dataIdx = hasInlineGroup ? j - 1 : j;
+                const dim = isDataCol && dataIdx !== draggingColIndex;
+                if (!dim) return null;
+                return (
+                  <div
+                    key={`row-ov:${hasInlineGroup && j === 0 ? '__inline' : JSON.stringify(columnsOrdered[dataIdx]?.path)}`}
+                    className={classes.overlayCol}
+                    style={{ left: overlayMeta.lefts[j], width: w, height: '100%' }}
+                  />
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>
