@@ -12,15 +12,23 @@ export default function GroupingPage({
       exampleKey="grouping"
       title="Grouping"
       variants={[
-        { name: 'Show Group Bar', props: { showGroupByDropZone: true } },
+        {
+          name: 'Show Group Bar',
+          props: { showGroupByDropZone: true, enableReorder: true },
+        },
         {
           name: 'Preset Group By Category',
-          props: { showGroupByDropZone: true, defaultGroupBy: [{ path: ['category'] }] },
+          props: {
+            showGroupByDropZone: true,
+            enableReorder: true,
+            defaultGroupBy: [{ path: ['category'] }],
+          },
         },
         {
           name: 'Preset Group + Expanded',
           props: {
             showGroupByDropZone: true,
+            enableReorder: true,
             defaultGroupBy: [{ path: ['category'] }],
             defaultExpandedKeys: ['["one"]', '["two"]', '[null]'],
           },

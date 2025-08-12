@@ -42,6 +42,41 @@ class MockDataTransfer {
 }
 
 describe('MassiveTable grouping', () => {
+  it('reorders columns while grouped', async () => {
+    const getRows = makeGetRowsGrouped();
+    const onPreview = vi.fn();
+    const onFinal = vi.fn();
+    render(
+      <MassiveTable<Row>
+        getRows={getRows}
+        rowCount={2}
+        columns={columns}
+        showGroupByDropZone
+        enableReorder
+        defaultGroupBy={[{ path: ['a'] }]}
+        onColumnOrderPreviewChange={onPreview}
+        onColumnOrderChange={onFinal}
+        style={{ height: 240, width: 400 }}
+      />,
+    );
+    const headerA = screen.getByRole('button', { name: /^A/ });
+    const headerB = screen.getByRole('button', { name: /^B/ });
+    const dt = new MockDataTransfer();
+    await act(async () => {
+      fireEvent.dragStart(headerA, { dataTransfer: dt });
+      fireEvent.dragOver(headerB, { dataTransfer: dt });
+    });
+    expect(onPreview).toHaveBeenCalled();
+    const lastPreview = onPreview.mock.calls.at(-1)![0];
+    expect(lastPreview).toEqual([1, 0]);
+    await act(async () => {
+      fireEvent.drop(headerB, { dataTransfer: dt });
+      fireEvent.dragEnd(headerA, { dataTransfer: dt });
+    });
+    expect(onFinal).toHaveBeenCalled();
+    const final = onFinal.mock.calls.at(-1)![0];
+    expect(final).toEqual([1, 0]);
+  });
   it('adds a group via header -> group bar drop', async () => {
     const getRows = makeGetRowsGrouped();
     render(
