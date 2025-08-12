@@ -6,7 +6,7 @@ import App from '../src/App';
 
 describe('Logs demo header sort indicators and interactions', () => {
   it('shows default sort on # header (desc by index)', async () => {
-    window.location.hash = '#/logs/0';
+    window.location.hash = '#/logs/desc';
     render(<App />);
 
     const hashHeader = await screen.findByRole('button', { name: '#' });
@@ -19,7 +19,7 @@ describe('Logs demo header sort indicators and interactions', () => {
   });
 
   it('clicking another header replaces sort and updates indicators', async () => {
-    window.location.hash = '#/logs/0';
+    window.location.hash = '#/logs/desc';
     render(<App />);
 
     const hashHeader = await screen.findByRole('button', { name: '#' });

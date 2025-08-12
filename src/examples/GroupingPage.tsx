@@ -1,0 +1,38 @@
+import * as React from 'react';
+import MassiveTable from '../lib/MassiveTable';
+import type { ColumnDef, GetRowsResult, RowsRequest } from '../lib/types';
+import type { Row, GroupHeader } from '../demoTypes';
+
+interface Props {
+  columns: ColumnDef<Row | GroupHeader>[];
+  getRows: (
+    start: number,
+    end: number,
+    req?: RowsRequest<Row | GroupHeader>,
+  ) => Promise<GetRowsResult<Row | GroupHeader>>;
+  rowCount: number;
+  className: string;
+  classes: Record<string, string>;
+}
+
+export default function GroupingPage({
+  columns,
+  getRows,
+  rowCount,
+  className,
+  classes,
+}: Props) {
+  return (
+    <MassiveTable<Row | GroupHeader>
+      columns={columns}
+      getRows={getRows}
+      rowCount={rowCount}
+      showGroupByDropZone
+      defaultGroupBy={[{ path: ['category'] }]}
+      defaultExpandedKeys={["[\"one\"]", "[\"two\"]", "[null]"]}
+      className={className}
+      classes={classes}
+    />
+  );
+}
+

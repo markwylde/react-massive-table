@@ -7,7 +7,7 @@ import App from '../src/App';
 describe('App Logs inline-group example', () => {
   it('collapses to first occurrence, expands to full trace block below anchor (desc)', async () => {
     // Go to Logs example
-    window.location.hash = '#/logs/0';
+    window.location.hash = '#/logs/desc';
 
     render(<App />);
 
@@ -15,10 +15,12 @@ describe('App Logs inline-group example', () => {
     await screen.findByRole('button', { name: 'Trace ID' });
 
     // Initially collapsed: only one row per trace visible
+    const anchorSpan = await screen.findByText(/for trace 2222222/);
+    expect(anchorSpan).toBeInTheDocument();
     expect(screen.getAllByText(/for trace 2222222/).length).toBe(1);
 
     // Expand the first anchor (should be 2222222 with newest first)
-    const expandButtons = await screen.findAllByRole('button', { name: 'Expand trace' });
+    const expandButtons = await screen.findAllByRole('button', { name: /Expand/ });
     expect(expandButtons.length).toBeGreaterThan(0);
     await act(async () => {
       fireEvent.click(expandButtons[0]);
@@ -45,15 +47,15 @@ describe('App Logs inline-group example', () => {
 
   it('respects sort order when expanded (asc yields rising spans beneath anchor)', async () => {
     // Navigate to the Index Asc variant
-    window.location.hash = '#/logs/1';
-    const { container } = render(<App />);
+    window.location.hash = '#/logs/asc';
+    render(<App />);
     await screen.findByRole('button', { name: 'Trace ID' });
 
     // Click expand on a specific trace anchor to avoid ambiguity.
     // Choose trace 1111111 and its anchor message (Span 1 of 5...) in asc variant.
     const anchorMsg = await screen.findByText('Span 1 of 5 for trace 1111111');
     const rowEl = anchorMsg.closest('[role="button"]') as HTMLElement;
-    const expander = within(rowEl).getByRole('button', { name: 'Expand trace' });
+    const expander = within(rowEl).getByRole('button', { name: /Expand/ });
     await act(async () => {
       fireEvent.click(expander);
     });
