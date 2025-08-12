@@ -53,7 +53,8 @@ describe('MassiveTable grouping', () => {
         style={{ height: 240, width: 400 }}
       />,
     );
-    const headerA = screen.getByRole('button', { name: 'A' });
+    // Find the header button/div that contains "A" - it should have "A ⊕" as name
+    const headerA = screen.getByRole('button', { name: /^A/ });
     const groupBar = screen.getByRole('toolbar', { name: /Group by bar/i });
     const dt = new MockDataTransfer();
     // Include the column path payload
@@ -63,8 +64,9 @@ describe('MassiveTable grouping', () => {
       fireEvent.dragOver(groupBar, { dataTransfer: dt });
       fireEvent.drop(groupBar, { dataTransfer: dt });
     });
-    // A chip with title 'A' should appear inside the group bar
-    expect(within(groupBar).getByRole('button', { name: 'A' })).toBeInTheDocument();
+    // A chip with title 'A' should appear inside the group bar as a listitem
+    expect(within(groupBar).getByRole('listitem', { name: /Drag to reorder/ })).toBeInTheDocument();
+    expect(within(groupBar).getByText('A')).toBeInTheDocument();
   });
 
   it('removes a group when chip drag ends outside', async () => {
@@ -79,14 +81,14 @@ describe('MassiveTable grouping', () => {
       />,
     );
     const groupBar = screen.getByRole('toolbar', { name: /Group by bar/i });
-    const chip = within(groupBar).getByRole('button', { name: 'A' });
+    const chip = within(groupBar).getByRole('listitem', { name: /Drag to reorder/ });
     const dt = new MockDataTransfer();
     await act(async () => {
       fireEvent.dragStart(chip, { dataTransfer: dt });
       // End drag without dropping on the bar
       fireEvent.dragEnd(chip, { dataTransfer: dt });
     });
-    expect(within(groupBar).queryByRole('button', { name: 'A' })).toBeNull();
+    expect(within(groupBar).queryByText('A')).toBeNull();
   });
 
   it('toggles group row expand/collapse', async () => {
