@@ -1,93 +1,42 @@
-import Chance from 'chance';
-import Prism from 'prismjs';
 import * as React from 'react';
-import 'prismjs/components/prism-typescript';
-import 'prismjs/components/prism-jsx';
-import 'prismjs/components/prism-tsx';
-import MassiveTable from './lib/MassiveTable';
-import baseClasses from './lib/styles/base.module.css';
-import darkTheme from './lib/styles/dark.module.css';
-import lightTheme from './lib/styles/light.module.css';
-import type { ColumnDef, ColumnPath, GetRowsResult, RowsRequest, Sort } from './lib/types';
-import { getByPath } from './lib/utils';
+import { DemoProvider, useDemo } from './context/DemoContext';
+import AllFeaturesPage from './pages/All';
+import BasicPage from './pages/Basic';
+import CustomPage from './pages/Custom';
+import GroupingPage from './pages/Grouping';
+import LayoutPage from './pages/Layout';
+import LogsPage from './pages/Logs';
+import ReorderPage from './pages/Reorder';
+import ResizePage from './pages/Resize';
+import SortingPage from './pages/Sorting';
+import VisibilityPage from './pages/Visibility';
+import { useHashRoute } from './router';
 
-type Row = {
-  index: number;
-  firstName: string;
-  lastName: string;
-  category: 'one' | 'two' | null;
-  favourites: { colour: string; number: number };
-};
-
-type GroupHeader = {
-  __group: true;
-  key: string;
-  depth: number;
-  value: unknown;
-  count: number;
-  path: ColumnPath;
-};
-
-const SEED = 1337;
-// Default row count (user-selectable)
-const DEFAULT_ROW_COUNT = 10_000;
-
-// makeRow moved to worker for off-thread generation
-
-const columns: ColumnDef<Row | GroupHeader>[] = [
-  { path: ['index'], title: '#', width: 80, align: 'right' },
-  { path: ['category'], title: 'Category', width: 200, align: 'left' },
-  { path: ['favourites', 'colour'], title: 'Favourite Colour', width: 200 },
-  { path: ['favourites', 'number'], title: 'Favourite Number', width: 140, align: 'right' },
-  { path: ['lastName'], title: 'Last Name', width: 220 },
-  { path: ['firstName'], title: 'First Name' },
+const rowOptions = [
+  { label: '10 rows', value: 10 },
+  { label: '100 rows', value: 100 },
+  { label: '1,000 rows', value: 1_000 },
+  { label: '10,000 rows (default)', value: 10_000 },
+  { label: '100,000 rows', value: 100_000 },
+  { label: '250,000 rows (slow)', value: 250_000 },
+  { label: '500,000 rows (slow)', value: 500_000 },
+  { label: '1,000,000 rows (slow)', value: 1_000_000 },
 ];
 
-// Inline-group logs example types and data
-type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
-type LogRow = {
-  id: number; // unique id
-  ts: number; // timestamp (ms)
-  level: LogLevel;
-  message: string;
-  trace_id: string | null;
-  // for demo table columns
-  index: number;
-};
+const routes = [
+  { key: 'basic', title: 'Basic' },
+  { key: 'visibility', title: 'Column Visibility' },
+  { key: 'logs', title: 'Logs (inline group)' },
+  { key: 'custom', title: 'Custom Render' },
+  { key: 'sorting', title: 'Sorting' },
+  { key: 'reorder', title: 'Column Reorder' },
+  { key: 'resize', title: 'Column Resize' },
+  { key: 'grouping', title: 'Grouping' },
+  { key: 'all', title: 'All Features' },
+  { key: 'layout', title: 'Layout (grid + flex)' },
+] as const;
 
-type LogRowWithMeta = LogRow & {
-  __inlineGroupKey?: string;
-  __inlineGroupAnchor?: boolean;
-  __inlineGroupMember?: boolean;
-  __inlineGroupExpanded?: boolean;
-  __inlineGroupSize?: number;
-};
-
-// Helper to build demo logs dataset: 20 normal logs, 5 + 5 spans across 2 traces
-function buildLogs(): LogRow[] {
-  const base = Date.now() - 1000 * 60 * 60; // 1h ago
-  const total = 30;
-  const traceAidx = [3, 6, 12, 18, 24];
-  const traceBidx = [5, 11, 15, 21, 27];
-  const levels: LogLevel[] = ['DEBUG', 'INFO', 'WARN', 'ERROR'];
-  const rows: LogRow[] = [];
-  let id = 1;
-  for (let i = 0; i < total; i++) {
-    const ts = base + i * 60_000; // each minute
-    let trace: string | null = null;
-    if (traceAidx.includes(i)) trace = '1111111';
-    else if (traceBidx.includes(i)) trace = '2222222';
-
-    const level = levels[i % levels.length];
-    const message = trace
-      ? `Span ${trace === '1111111' ? traceAidx.indexOf(i) + 1 : traceBidx.indexOf(i) + 1} of 5 for trace ${trace}`
-      : `Log message ${i + 1}`;
-    rows.push({ id: id++, ts, level, message, trace_id: trace, index: i + 1 });
-  }
-  return rows;
-}
-
-export default function App() {
+function Shell() {
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const topbarRef = React.useRef<HTMLDivElement | null>(null);
   const [topbarH, setTopbarH] = React.useState<number>(56);
@@ -107,916 +56,9 @@ export default function App() {
       ro?.disconnect();
     };
   }, []);
-  const [mode, setMode] = React.useState<'light' | 'dark'>(() => {
-    try {
-      const saved = localStorage.getItem('massive-table-mode') as 'light' | 'dark' | null;
-      if (saved === 'light' || saved === 'dark') return saved;
-    } catch {}
-    try {
-      const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ?? false;
-      return prefersDark ? 'dark' : 'light';
-    } catch {}
-    return 'light';
-  });
-  React.useEffect(() => {
-    // Persist and apply theme at the document level so global CSS vars resolve
-    try {
-      localStorage.setItem('massive-table-mode', mode);
-    } catch {}
-    try {
-      const root = document.documentElement;
-      root.setAttribute('data-theme', mode);
-      // Also mirror on body (defensive in case of component portals)
-      document.body?.setAttribute('data-theme', mode);
-    } catch {}
-  }, [mode]);
 
-  // Row count picker options
-  const rowOptions = React.useMemo(
-    () => [
-      { label: '10 rows', value: 10 },
-      { label: '100 rows', value: 100 },
-      { label: '1,000 rows', value: 1_000 },
-      { label: '10,000 rows (default)', value: 10_000 },
-      { label: '100,000 rows', value: 100_000 },
-      { label: '250,000 rows (slow)', value: 250_000 },
-      { label: '500,000 rows (slow)', value: 500_000 },
-      { label: '1,000,000 rows (slow)', value: 1_000_000 },
-    ],
-    [],
-  );
-
-  // If the user hasn't explicitly chosen a theme, follow system changes
-  React.useEffect(() => {
-    let hasSaved = false;
-    try {
-      hasSaved = !!localStorage.getItem('massive-table-mode');
-    } catch {}
-    if (hasSaved) return;
-    const mql = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
-    if (!mql) return;
-    const handler = (ev: MediaQueryListEvent) => setMode(ev.matches ? 'dark' : 'light');
-    try {
-      mql.addEventListener('change', handler);
-    } catch {
-      // Safari <14 legacy API
-      mql.addListener?.(handler);
-    }
-    return () => {
-      try {
-        mql.removeEventListener('change', handler);
-      } catch {
-        // Safari <14 legacy API
-        mql.removeListener?.(handler);
-      }
-    };
-  }, []);
-  // Dataset state driven by Web Worker generation
-  const [rowCount, setRowCount] = React.useState<number>(DEFAULT_ROW_COUNT);
-  const [data, setData] = React.useState<Row[]>([]);
-  const [dataVersion, setDataVersion] = React.useState<number>(0);
-  const [isGenerating, setIsGenerating] = React.useState<boolean>(false);
-  const workerRef = React.useRef<Worker | null>(null);
-  const generateRowsSync = React.useCallback((count: number): Row[] => {
-    const rows: Row[] = new Array(count);
-    for (let i = 0; i < count; i++) {
-      const c = new Chance(`${SEED}-${i}`);
-      rows[i] = {
-        index: i + 1,
-        firstName: c.first(),
-        lastName: c.last(),
-        category: c.pick(['one', 'two', null]),
-        favourites: {
-          colour: c.color({ format: 'name' }),
-          number: c.integer({ min: 1, max: 100 }),
-        },
-      };
-    }
-    return rows;
-  }, []);
-
-  const startGeneration = React.useCallback((count: number) => {
-    setIsGenerating(true);
-    setRowCount(count);
-    try {
-      if (workerRef.current) {
-        workerRef.current.terminate();
-        workerRef.current = null;
-      }
-    } catch {}
-    // Fallback to synchronous generation in non-worker environments (tests/SSR)
-    if (typeof Worker === 'undefined') {
-      const rows = generateRowsSync(count);
-      setData(rows);
-      setDataVersion((v) => v + 1);
-      setIsGenerating(false);
-      return;
-    }
-    try {
-      const w = new Worker(new URL('./dataWorker.ts', import.meta.url), { type: 'module' });
-      workerRef.current = w;
-      w.onmessage = (ev: MessageEvent<{ type: string; rows: Row[] }>) => {
-        if (ev.data?.type === 'generated') {
-          setData(ev.data.rows);
-          setDataVersion((v) => v + 1);
-          setIsGenerating(false);
-        }
-      };
-      w.postMessage({ type: 'generate', count, seed: SEED });
-    } catch (_err) {
-      // If worker creation fails (e.g., test env), do sync generation
-      const rows = generateRowsSync(count);
-      setData(rows);
-      setDataVersion((v) => v + 1);
-      setIsGenerating(false);
-    }
-  }, []);
-
-  // Kick off initial generation
-  React.useEffect(() => {
-    startGeneration(DEFAULT_ROW_COUNT);
-    return () => {
-      try {
-        workerRef.current?.terminate();
-      } catch {}
-    };
-  }, [startGeneration]);
-
-  // Cache sorted arrays per sorts signature
-  const sortedCacheRef = React.useRef<Map<string, Row[]>>(new Map());
-  const groupedCacheRef = React.useRef<Map<string, (Row | GroupHeader)[]>>(new Map());
-  // Clear caches when data changes
-  React.useEffect(() => {
-    sortedCacheRef.current.clear();
-    groupedCacheRef.current.clear();
-  }, [data]);
-  const getRows = React.useCallback(
-    async (
-      start: number,
-      end: number,
-      req?: RowsRequest<Row | GroupHeader>,
-    ): Promise<GetRowsResult<Row | GroupHeader>> => {
-      const len = Math.max(0, end - start);
-      const sorts = req?.sorts ?? [];
-      const groupBy = req?.groupBy ?? [];
-      const expandedSet = new Set(req?.groupState?.expandedKeys ?? []);
-
-      // Sort stage (cache by sorts signature)
-      const sortSig = sorts.map((s) => `${JSON.stringify(s.path)}:${s.dir}`).join('|');
-      let sorted = sortedCacheRef.current.get(sortSig);
-      if (!sorted) {
-        if (sorts.length === 0) {
-          sorted = data;
-        } else {
-          const cmp = (a: Row, b: Row) => {
-            for (const s of sorts) {
-              const va = getByPath(a, s.path);
-              const vb = getByPath(b, s.path);
-              if (va == null && vb == null) continue;
-              if (va == null) return s.dir === 'asc' ? 1 : -1; // nulls last
-              if (vb == null) return s.dir === 'asc' ? -1 : 1;
-              let d = 0;
-              if (typeof va === 'number' && typeof vb === 'number') {
-                d = va - vb;
-              } else {
-                const sa = String(va).toLocaleString();
-                const sb = String(vb).toLocaleString();
-                d = sa < sb ? -1 : sa > sb ? 1 : 0;
-              }
-              if (d !== 0) return s.dir === 'asc' ? d : -d;
-            }
-            return 0;
-          };
-          sorted = data.slice().sort(cmp);
-        }
-        sortedCacheRef.current.set(sortSig, sorted);
-        if (sortedCacheRef.current.size > 8) {
-          const firstKey = sortedCacheRef.current.keys().next().value as string | undefined;
-          if (firstKey) sortedCacheRef.current.delete(firstKey);
-        }
-      }
-
-      // If no grouping, return slice of sorted data
-      if (groupBy.length === 0) {
-        return { rows: sorted.slice(start, start + len), total: sorted.length };
-      }
-
-      // Grouping stage (cache by sorts + groupBy + expanded keys)
-      const gbSig = groupBy.map((g) => JSON.stringify(g.path)).join('|');
-      const exSig = Array.from(expandedSet).sort().join('|');
-      const key = `${sortSig}::${gbSig}::${exSig}`;
-      let flattened = groupedCacheRef.current.get(key);
-      if (!flattened) {
-        const paths = groupBy.map((g) => g.path);
-        // Build a recursive grouping tree and flatten according to expandedSet
-        type GroupNode = {
-          key: string;
-          depth: number;
-          value: unknown;
-          rows: Row[];
-          children?: Map<string, GroupNode>;
-        };
-        const root: GroupNode = { key: 'root', depth: 0, value: null, rows: sorted };
-        const build = (node: GroupNode, depth: number) => {
-          if (depth >= paths.length) return;
-          const path = paths[depth];
-          const map = new Map<string, GroupNode>();
-          for (const r of node.rows) {
-            const v = getByPath(r, path);
-            const k = JSON.stringify([
-              ...(JSON.parse(node.key === 'root' ? '[]' : node.key) as unknown[]),
-              v,
-            ]);
-            let child = map.get(k);
-            if (!child) {
-              child = { key: k, depth, value: v, rows: [] } as GroupNode;
-              map.set(k, child);
-            }
-            child.rows.push(r);
-          }
-          node.children = map;
-          for (const c of map.values()) build(c, depth + 1);
-        };
-        build(root, 0);
-
-        const out: (Row | GroupHeader)[] = [];
-        const flatten = (node: GroupNode) => {
-          if (!node.children) return;
-          for (const child of node.children.values()) {
-            const header = {
-              __group: true,
-              key: child.key,
-              depth: child.depth,
-              value: child.value,
-              count: child.rows.length,
-              path: paths[child.depth],
-            } as GroupHeader;
-            out.push(header);
-            const isExpanded = expandedSet.has(child.key);
-            if (isExpanded) {
-              if (child.children) {
-                flatten(child);
-              } else {
-                out.push(...child.rows);
-              }
-            }
-          }
-        };
-        flatten(root);
-        flattened = out;
-        groupedCacheRef.current.set(key, flattened);
-        if (groupedCacheRef.current.size > 8) {
-          const firstKey = groupedCacheRef.current.keys().next().value as string | undefined;
-          if (firstKey) groupedCacheRef.current.delete(firstKey);
-        }
-      }
-      return { rows: flattened.slice(start, start + len), total: flattened.length };
-    },
-    [data],
-  );
-
-  // ------------------------
-  // Logs inline-group example
-  // ------------------------
-  const logsData = React.useMemo(() => buildLogs(), []);
-  const [logsExpandedKeys, setLogsExpandedKeys] = React.useState<string[]>([]);
-
-  // generic compare using sorts; nulls last
-  const makeComparator = React.useCallback(
-    <T extends object>(sorts: Sort<T>[]) =>
-      (a: T, b: T) => {
-        for (const s of sorts) {
-          const va = getByPath(a as unknown as Record<string, unknown>, s.path);
-          const vb = getByPath(b as unknown as Record<string, unknown>, s.path);
-          if (va == null && vb == null) continue;
-          if (va == null) return s.dir === 'asc' ? 1 : -1;
-          if (vb == null) return s.dir === 'asc' ? -1 : 1;
-          let d = 0;
-          if (typeof va === 'number' && typeof vb === 'number') d = va - vb;
-          else {
-            const sa = String(va).toLocaleString();
-            const sb = String(vb).toLocaleString();
-            d = sa < sb ? -1 : sa > sb ? 1 : 0;
-          }
-          if (d !== 0) return s.dir === 'asc' ? d : -d;
-        }
-        return 0;
-      },
-    [],
-  );
-
-  type AnyRow = Record<string, unknown> & { trace_id?: string | null; ts?: number };
-  const getRowsLogs = React.useCallback(
-    async (
-      start: number,
-      end: number,
-      req?: RowsRequest<AnyRow>,
-    ): Promise<GetRowsResult<AnyRow>> => {
-      const sorts = (req?.sorts as Sort<AnyRow>[]) ?? [];
-      // default to index desc (visible column) if no sorts
-      const effectiveSorts =
-        sorts.length > 0 ? sorts : ([{ path: ['index'], dir: 'desc' }] as Sort<AnyRow>[]);
-      const cmp = makeComparator<AnyRow>(effectiveSorts);
-
-      // Sort base data per user sorts
-      const sorted = logsData
-        .map((r) => r as AnyRow)
-        .slice()
-        .sort(cmp);
-
-      // Build trace groups by trace_id (non-null) in the current sorted order
-      const byTrace = new Map<string, AnyRow[]>();
-      for (const r of sorted) {
-        const tid = r.trace_id as string | null;
-        if (tid) {
-          const arr = byTrace.get(tid) ?? [];
-          arr.push(r);
-          byTrace.set(tid, arr);
-        }
-      }
-
-      // Compute units: either a non-trace row unit, or a trace block unit positioned by earliest ts
-      type Unit =
-        | { kind: 'row'; row: AnyRow }
-        | { kind: 'trace'; id: string; rows: AnyRow[]; anchor: AnyRow };
-      const usedInTrace = new Set<AnyRow>();
-      const traceUnits: Unit[] = [];
-      for (const [id, rows] of byTrace.entries()) {
-        // Anchor at the first occurrence in the current sort (Option A)
-        const anchor = rows[0];
-        traceUnits.push({ kind: 'trace', id, rows, anchor });
-        for (const r of rows) usedInTrace.add(r);
-      }
-      const rowUnits: Unit[] = sorted
-        .filter((r) => !usedInTrace.has(r))
-        .map((r) => ({ kind: 'row', row: r }));
-
-      // Merge units and sort using user sorts applied to the anchor/row values
-      const units = [...rowUnits, ...traceUnits];
-      const unitCmp = (ua: Unit, ub: Unit) => {
-        const a = ua.kind === 'trace' ? ua.anchor : ua.row;
-        const b = ub.kind === 'trace' ? ub.anchor : ub.row;
-        return cmp(a, b);
-      };
-      units.sort(unitCmp);
-
-      // Flatten, collapsing/expanding trace units according to expanded keys
-      const expandedSet = new Set(req?.groupState?.expandedKeys ?? logsExpandedKeys);
-      const out: AnyRow[] = [];
-      for (const u of units) {
-        if (u.kind === 'row') {
-          out.push(u.row);
-        } else {
-          const key = `trace:${u.id}`;
-          const isExpanded = expandedSet.has(key);
-          if (isExpanded) {
-            // Output all rows (already in user-sorted order). Keep the anchor row clickable.
-            for (const r of u.rows) {
-              out.push({
-                ...r,
-                __inlineGroupKey: key,
-                __inlineGroupMember: r !== u.anchor,
-                __inlineGroupAnchor: r === u.anchor,
-                __inlineGroupExpanded: true,
-                __inlineGroupSize: u.rows.length,
-              });
-            }
-          } else {
-            // Output only the anchor row, mark it as anchor
-            out.push({
-              ...u.anchor,
-              __inlineGroupKey: key,
-              __inlineGroupAnchor: true,
-              __inlineGroupSize: u.rows.length,
-            });
-          }
-        }
-      }
-
-      const len = Math.max(0, end - start);
-      return { rows: out.slice(start, start + len), total: out.length };
-    },
-    [logsData, logsExpandedKeys, makeComparator],
-  );
-
-  // Columns for logs example
-  const logsColumns: ColumnDef<LogRowWithMeta>[] = React.useMemo(
-    () => [
-      { path: ['index'], title: '#', width: 80 },
-      { path: ['level'], title: 'Level', width: 200 },
-      { path: ['message'], title: 'Message' },
-      { path: ['trace_id'], title: 'Trace ID', inlineGroup: true },
-    ],
-    [],
-  );
-
-  // Storybook-like example registry
-  type Variant = {
-    name: string;
-    props: Partial<React.ComponentProps<typeof MassiveTable<Row | GroupHeader>>>;
-    note?: string;
-  };
-  type Example = { key: string; title: string; variants: Variant[] };
-
-  const examples: Example[] = React.useMemo(
-    () => [
-      {
-        key: 'basic',
-        title: 'Basic',
-        variants: [
-          {
-            name: 'Basic Table',
-            props: {}, // rely on component defaults (all features off)
-            note: 'No sort, no reorder, no resize, no group bar.',
-          },
-        ],
-      },
-      {
-        key: 'visibility',
-        title: 'Column Visibility',
-        variants: [{ name: 'Toggle Columns', props: {} }],
-      },
-      {
-        key: 'logs',
-        title: 'Logs (inline group)',
-        variants: [
-          {
-            name: 'Trace collapse/expand by Trace ID',
-            props: {
-              columns: logsColumns as unknown as ColumnDef<Row | GroupHeader>[],
-              getRows: getRowsLogs as unknown as (
-                start: number,
-                end: number,
-                req?: RowsRequest<Row | GroupHeader>,
-              ) => GetRowsResult<Row | GroupHeader>,
-              rowCount: logsData.length,
-              enableSort: true,
-              defaultSorts: [{ path: ['index'], dir: 'desc' }] as unknown as Sort[],
-              expandedKeys: logsExpandedKeys,
-              onExpandedKeysChange: setLogsExpandedKeys,
-            },
-            note: '30 logs; traces inlined under the first occurrence.',
-          },
-          {
-            name: 'Inline group + Index Asc',
-            props: {
-              columns: logsColumns as unknown as ColumnDef<Row | GroupHeader>[],
-              getRows: getRowsLogs as unknown as (
-                start: number,
-                end: number,
-                req?: RowsRequest<Row | GroupHeader>,
-              ) => GetRowsResult<Row | GroupHeader>,
-              rowCount: logsData.length,
-              enableSort: true,
-              defaultSorts: [{ path: ['index'], dir: 'asc' }] as unknown as Sort[],
-              expandedKeys: logsExpandedKeys,
-              onExpandedKeysChange: setLogsExpandedKeys,
-            },
-            note: 'Same data but sorted by index ascending by default.',
-          },
-        ],
-      },
-      {
-        key: 'custom',
-        title: 'Custom Render',
-        variants: [
-          {
-            name: 'Red pill cell',
-            props: {
-              columns: (() => {
-                const pillColumns: ColumnDef<Row | GroupHeader>[] = columns.map((c) => ({ ...c }));
-                // Add a render override to show a red pill for a specific cell
-                const idx = pillColumns.findIndex(
-                  (c) => JSON.stringify(c.path) === JSON.stringify(['favourites', 'number']),
-                );
-                if (idx >= 0) {
-                  pillColumns[idx] = {
-                    ...pillColumns[idx],
-                    render: (v: unknown, row: Row | GroupHeader, rowIndex: number) => {
-                      const isGroupHeader = (r: Row | GroupHeader): r is GroupHeader =>
-                        '__group' in r;
-                      // Only decorate one specific cell in this demo: rowIndex === 10
-                      if (rowIndex === 10 && row && !isGroupHeader(row) && typeof v === 'number') {
-                        return (
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 6,
-                            }}
-                          >
-                            <span
-                              style={{
-                                background: '#fee2e2',
-                                color: '#991b1b',
-                                borderRadius: 999,
-                                padding: '2px 8px',
-                                fontWeight: 600,
-                                fontSize: 12,
-                              }}
-                            >
-                              {String(v)}
-                            </span>
-                          </span>
-                        );
-                      }
-                      // default rendering
-                      return String(v ?? '');
-                    },
-                  } as ColumnDef<Row | GroupHeader>;
-                }
-                return pillColumns;
-              })() as ColumnDef<Row | GroupHeader>[],
-            },
-            note: 'Shows a red pill for one specific cell using a column render override.',
-          },
-        ],
-      },
-      {
-        key: 'sorting',
-        title: 'Sorting',
-        variants: [
-          { name: 'Enable Sorting', props: { enableSort: true } },
-          {
-            name: 'Default Sorts',
-            props: {
-              enableSort: true,
-              defaultSorts: [{ path: ['lastName'], dir: 'asc' }] as Sort[],
-            },
-            note: 'Pre-sorted by Last Name ascending.',
-          },
-        ],
-      },
-      {
-        key: 'reorder',
-        title: 'Column Reorder',
-        variants: [{ name: 'Enable Reorder', props: { enableReorder: true } }],
-      },
-      {
-        key: 'resize',
-        title: 'Column Resize',
-        variants: [{ name: 'Enable Resize', props: { enableResize: true } }],
-      },
-      {
-        key: 'grouping',
-        title: 'Grouping',
-        variants: [
-          { name: 'Show Group Bar', props: { showGroupByDropZone: true } },
-          {
-            name: 'Preset Group By Category',
-            props: { showGroupByDropZone: true, defaultGroupBy: [{ path: ['category'] }] },
-          },
-          {
-            name: 'Preset Group + Expanded',
-            props: {
-              showGroupByDropZone: true,
-              defaultGroupBy: [{ path: ['category'] }],
-              defaultExpandedKeys: ['["one"]', '["two"]', '[null]'],
-            },
-          },
-        ],
-      },
-      {
-        key: 'all',
-        title: 'All Features',
-        variants: [
-          {
-            name: 'Sortable + Reorder + Resize + Group Bar',
-            props: {
-              enableSort: true,
-              enableReorder: true,
-              enableResize: true,
-              showGroupByDropZone: true,
-            },
-          },
-        ],
-      },
-      {
-        key: 'layout',
-        title: 'Layout (grid + flex)',
-        variants: [
-          {
-            name: 'Grid 2x2 + Flex 3 (auto height)',
-            props: {},
-            note: 'Each cell flex/grow with MassiveTable filling 100% height.',
-          },
-        ],
-      },
-    ],
-    [logsColumns, getRowsLogs, logsData.length, logsExpandedKeys],
-  );
-
-  // Basic hash router: #/exampleKey or #/exampleKey/variantIndex
-  const [activeExampleKey, setActiveExampleKey] = React.useState<string>('basic');
-  const activeExample = examples.find((e) => e.key === activeExampleKey) ??
-    examples[0] ?? { key: 'fallback', title: 'Fallback', variants: [] };
-  const [activeVariantIndex, setActiveVariantIndex] = React.useState<number>(0);
-  // Sync from URL hash on load and when it changes
-  React.useEffect(() => {
-    const parse = () => {
-      const hash = window.location.hash.replace(/^#/, '');
-      const parts = hash.split('/').filter(Boolean); // [exampleKey, variantIdx?]
-      const nextKey = parts[0] || 'basic';
-      const found = examples.find((e) => e.key === nextKey);
-      if (!found) {
-        setActiveExampleKey('basic');
-        setActiveVariantIndex(0);
-        return;
-      }
-      setActiveExampleKey(found.key);
-      const idx = parts[1] ? Number(parts[1]) : 0;
-      const safeIdx = Number.isFinite(idx)
-        ? Math.max(0, Math.min(idx, found.variants.length - 1))
-        : 0;
-      setActiveVariantIndex(Number.isNaN(safeIdx) ? 0 : safeIdx);
-    };
-    window.addEventListener('hashchange', parse);
-    parse();
-    return () => window.removeEventListener('hashchange', parse);
-  }, [examples]);
-
-  // Navigate helper
-  const navigate = React.useCallback((key: string, variant?: number) => {
-    const v = typeof variant === 'number' ? `/${variant}` : '';
-    const next = `#/${key}${v}`;
-    if (window.location.hash !== next) window.location.hash = next;
-    // Close sidebar on mobile after navigation
-    setSidebarOpen(false);
-  }, []);
-
-  const activeVariant = activeExample.variants[activeVariantIndex] ??
-    activeExample.variants[0] ?? { name: 'Variant', props: {} };
-
-  // Keep order state to display in reorder example
-  const [_order, setOrder] = React.useState<number[]>([]);
-  const [_previewOrder, setPreviewOrder] = React.useState<number[] | null>(null);
-
-  // Helper: build a concise usage snippet per variant
-  const usageCode = React.useMemo(() => {
-    const v = activeVariant;
-    const isLogs = activeExample.key === 'logs';
-    const baseHeader = `import MassiveTable from 'react-massive-table';\n`;
-    const baseRow = isLogs
-      ? `type Row = { id: number; ts: number; level: 'DEBUG'|'INFO'|'WARN'|'ERROR'; message: string; trace_id?: string|null; index: number };\n`
-      : `type Row = { index: number; firstName: string; lastName: string; category: 'one'|'two'|null; favourites: { colour: string; number: number } };\n`;
-    const cols = isLogs
-      ? `const columns: ColumnDef<Row>[] = [\n  { path: ['index'], title: '#', width: 80 },\n  { path: ['level'], title: 'Level', width: 200 },\n  { path: ['message'], title: 'Message' },\n  { path: ['trace_id'], title: 'Trace ID', inlineGroup: true },\n];\n`
-      : `const columns: ColumnDef<Row>[] = [\n  { path: ['index'], title: '#', width: 80, align: 'right' },\n  { path: ['category'], title: 'Category', width: 200 },\n  { path: ['favourites','colour'], title: 'Favourite Colour', width: 200 },\n  { path: ['favourites','number'], title: 'Favourite Number', width: 140, align: 'right' },\n  { path: ['lastName'], title: 'Last Name', width: 220 },\n  { path: ['firstName'], title: 'First Name' },\n];\n`;
-    const getRowsSig = isLogs
-      ? `// Example: inline-grouped logs (flatten as needed)\nconst logs: Row[] = /* your log rows */ [];\n\nconst getRows = (start: number, end: number, req?: RowsRequest<Row>) => {\n  // Optionally sort and inline-group by trace using req\n  const flat = logs;\n  return { rows: flat.slice(start, end), total: flat.length };\n};\n`
-      : `// Example: in-memory data\nconst rows: Row[] = /* your rows */ [];\n\nconst getRows = (start: number, end: number, req?: RowsRequest<Row>) => {\n  // Optionally sort/filter using req\n  const src = rows;\n  return { rows: src.slice(start, end), total: src.length };\n};\n`;
-    const props: string[] = [];
-    // Always include core props
-    if (isLogs) {
-      props.push('columns={columns}');
-      props.push('getRows={getRows}');
-      props.push(`rowCount={${isLogs ? 'logs.length' : 'rowCount'}}`);
-    } else {
-      props.push('columns={columns}');
-      props.push('getRows={getRows}');
-      props.push('rowCount={rowCount}');
-    }
-    // Variant props
-    type VariantPropsExtras = {
-      defaultSorts?: Sort[];
-      defaultGroupBy?: { path: ColumnPath }[];
-      rowHeight?: unknown;
-    };
-    const p = (v.props ?? {}) as Partial<
-      React.ComponentProps<typeof MassiveTable<Row | GroupHeader>>
-    > &
-      VariantPropsExtras;
-    if (p.enableSort) props.push('enableSort');
-    if (p.enableReorder) props.push('enableReorder');
-    if (p.enableResize) props.push('enableResize');
-    if (p.showGroupByDropZone) props.push('showGroupByDropZone');
-    if (p.defaultSorts) {
-      const ds = p.defaultSorts as Sort[];
-      props.push(
-        `defaultSorts={[${ds
-          .map((s) => `{ path: ${JSON.stringify(s.path)}, dir: '${s.dir}' }`)
-          .join(', ')}]}`,
-      );
-    }
-    if (p.defaultGroupBy) {
-      const dg = p.defaultGroupBy as { path: ColumnPath }[];
-      props.push(
-        `defaultGroupBy={[${dg.map((g) => `{ path: ${JSON.stringify(g.path)} }`).join(', ')}]}`,
-      );
-    }
-    if (p.rowHeight !== undefined) props.push(`rowHeight={${JSON.stringify(p.rowHeight)}}`);
-
-    const open = `<MassiveTable<Row>\n  `;
-    const body = props.map((line) => `  ${line}`).join('\n');
-    const close = `\n/>`;
-    return [
-      baseHeader,
-      baseRow,
-      `/* Columns */\n${cols}`,
-      `/* Data fetching */\n${getRowsSig}`,
-      `/* Usage */\n${open}${body}${close}`,
-    ].join('\n');
-  }, [activeExample.key, activeVariant]);
-
-  const copyUsage = React.useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(usageCode);
-    } catch {}
-  }, [usageCode]);
-  const usageHtml = React.useMemo(
-    () => Prism.highlight(usageCode, Prism.languages.tsx, 'tsx'),
-    [usageCode],
-  );
-  const usageCodeRef = React.useRef<HTMLElement | null>(null);
-  React.useEffect(() => {
-    if (usageCodeRef.current) {
-      usageCodeRef.current.innerHTML = usageHtml;
-    }
-  }, [usageHtml]);
-
-  // ------------------------
-  // Layout demo (Grid + Flex)
-  // ------------------------
-  const LayoutDemo: React.FC = () => {
-    // Build distinct datasets by slicing the main demo data
-    const gridA = React.useMemo(() => data.slice(0, 2500), [data]);
-    const gridB = React.useMemo(() => data.slice(2500, 5000), [data]);
-    const gridC = React.useMemo(() => data.slice(5000, 7500), [data]);
-    const gridD = React.useMemo(() => data.slice(7500, 10000), [data]);
-
-    const flexA = React.useMemo(() => data.filter((r) => r.category === 'one'), [data]);
-    const flexB = React.useMemo(() => data.filter((r) => r.category === 'two'), [data]);
-    const flexC = React.useMemo(() => data.filter((r) => r.favourites.number <= 50), [data]);
-
-    const makeGetRows = React.useCallback(
-      <T extends object>(arr: T[]) =>
-        async (start: number, end: number): Promise<GetRowsResult<T>> => {
-          const len = Math.max(0, end - start);
-          return { rows: arr.slice(start, start + len), total: arr.length };
-        },
-      [],
-    );
-
-    const themeClass = mode === 'dark' ? darkTheme.theme : lightTheme.theme;
-
-    return (
-      <div>
-        <section className="layout-section">
-          <h3 className="layout-title">CSS Grid: 2 x 2 (auto-fill)</h3>
-          <div className="layout-grid">
-            <div className="cell">
-              <MassiveTable<Row>
-                key="grid-a"
-                classes={baseClasses}
-                className={themeClass}
-                columns={columns as unknown as ColumnDef<Row>[]}
-                getRows={makeGetRows<Row>(gridA)}
-                rowCount={gridA.length}
-                style={{ height: '100%', width: '100%' }}
-              />
-            </div>
-            <div className="cell">
-              <MassiveTable<Row>
-                key="grid-b"
-                classes={baseClasses}
-                className={themeClass}
-                columns={columns as unknown as ColumnDef<Row>[]}
-                getRows={makeGetRows<Row>(gridB)}
-                rowCount={gridB.length}
-                style={{ height: '100%', width: '100%' }}
-              />
-            </div>
-            <div className="cell">
-              <MassiveTable<Row>
-                key="grid-c"
-                classes={baseClasses}
-                className={themeClass}
-                columns={columns as unknown as ColumnDef<Row>[]}
-                getRows={makeGetRows<Row>(gridC)}
-                rowCount={gridC.length}
-                style={{ height: '100%', width: '100%' }}
-              />
-            </div>
-            <div className="cell">
-              <MassiveTable<Row>
-                key="grid-d"
-                classes={baseClasses}
-                className={themeClass}
-                columns={columns as unknown as ColumnDef<Row>[]}
-                getRows={makeGetRows<Row>(gridD)}
-                rowCount={gridD.length}
-                style={{ height: '100%', width: '100%' }}
-              />
-            </div>
-          </div>
-        </section>
-
-        <section className="layout-section">
-          <h3 className="layout-title">Flex: 3 cells (flex: 1 1 0)</h3>
-          <div className="layout-flex">
-            <div className="cell">
-              <MassiveTable<Row>
-                key="flex-a"
-                classes={baseClasses}
-                className={themeClass}
-                columns={columns as unknown as ColumnDef<Row>[]}
-                getRows={makeGetRows<Row>(flexA)}
-                rowCount={flexA.length}
-                style={{ height: '100%', width: '100%' }}
-              />
-            </div>
-            <div className="cell">
-              <MassiveTable<Row>
-                key="flex-b"
-                classes={baseClasses}
-                className={themeClass}
-                columns={columns as unknown as ColumnDef<Row>[]}
-                getRows={makeGetRows<Row>(flexB)}
-                rowCount={flexB.length}
-                style={{ height: '100%', width: '100%' }}
-              />
-            </div>
-            <div className="cell">
-              <MassiveTable<Row>
-                key="flex-c"
-                classes={baseClasses}
-                className={themeClass}
-                columns={columns as unknown as ColumnDef<Row>[]}
-                getRows={makeGetRows<Row>(flexC)}
-                rowCount={flexC.length}
-                style={{ height: '100%', width: '100%' }}
-              />
-            </div>
-          </div>
-        </section>
-      </div>
-    );
-  };
-
-  // ------------------------
-  // Column Visibility demo
-  // ------------------------
-  const VisibilityDemo: React.FC = () => {
-    const themeClass = mode === 'dark' ? darkTheme.theme : lightTheme.theme;
-    const allKeys = React.useMemo(() => columns.map((c) => JSON.stringify(c.path)), []);
-    const [visibleKeys, setVisibleKeys] = React.useState<string[]>(allKeys);
-
-    const visibleColumns = React.useMemo(() => {
-      const set = new Set(visibleKeys);
-      return (columns as unknown as ColumnDef<Row | GroupHeader>[]).filter((c) =>
-        set.has(JSON.stringify(c.path)),
-      );
-    }, [visibleKeys]);
-
-    const toggleKey = (key: string) => {
-      setVisibleKeys((prev) => {
-        const has = prev.includes(key);
-        if (has) {
-          // Ensure at least one column remains visible
-          if (prev.length <= 1) return prev;
-          return prev.filter((k) => k !== key);
-        }
-        return [...prev, key];
-      });
-    };
-
-    return (
-      <div>
-        <div style={{ marginBottom: 12 }}>
-          <h3 className="usage-title" style={{ margin: 0 }}>
-            Toggle Columns
-          </h3>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
-            {columns.map((c) => {
-              const key = JSON.stringify(c.path);
-              const checked = visibleKeys.includes(key);
-              const disable = checked && visibleKeys.length <= 1;
-              return (
-                <label key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    disabled={disable}
-                    onChange={() => toggleKey(key)}
-                  />
-                  <span>{c.title ?? key}</span>
-                </label>
-              );
-            })}
-          </div>
-        </div>
-        <MassiveTable<Row | GroupHeader>
-          key={`visibility:${visibleColumns.length}:${dataVersion}`}
-          getRows={getRows}
-          rowCount={data.length}
-          columns={visibleColumns}
-          classes={baseClasses}
-          className={themeClass}
-          style={{ height: '70vh', width: '100%' }}
-        />
-      </div>
-    );
-  };
+  const { mode, setMode, rowCount, startGeneration, isGenerating } = useDemo();
+  const { key, variant, navigate } = useHashRoute('basic');
 
   return (
     <div
@@ -1025,7 +67,6 @@ export default function App() {
       data-sidebar-open={sidebarOpen ? 'true' : 'false'}
       style={{ ['--app-topbar-h' as string]: `${topbarH}px` }}
     >
-      {/* Top bar */}
       <div className="topbar" ref={topbarRef}>
         <div className="brand">
           <button
@@ -1055,153 +96,128 @@ export default function App() {
               </option>
             ))}
           </select>
-          {isGenerating && <output className="spinner" aria-live="polite" />}
+          {isGenerating && <span className="spinner" aria-hidden="true" />}
+          <span className="subtle" style={{ marginLeft: 12 }}>
+            Theme
+          </span>
           <fieldset className="segmented" aria-label="Theme toggle">
             <button
+              className={mode === 'light' ? 'active' : ''}
               onClick={() => setMode('light')}
               type="button"
-              className={mode === 'light' ? 'active' : undefined}
               aria-pressed={mode === 'light'}
             >
               Light
             </button>
             <button
+              className={mode === 'dark' ? 'active' : ''}
               onClick={() => setMode('dark')}
               type="button"
-              className={mode === 'dark' ? 'active' : undefined}
               aria-pressed={mode === 'dark'}
             >
               Dark
             </button>
           </fieldset>
-        </div>
-        <div className="topbar-sub">
-          <div className="topbar-rows">
-            <span className="subtle">Rows</span>
-            <select
-              value={rowCount}
-              onChange={(e) => startGeneration(Number(e.target.value))}
-              disabled={isGenerating}
-              aria-busy={isGenerating}
-              className="rows-select"
+          <a
+            href="https://github.com/markwylde/react-massive-table"
+            target="_blank"
+            rel="noreferrer"
+            className="topbar-icon"
+            aria-label="GitHub repository"
+            title="GitHub"
+          >
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+              <path
+                fill="currentColor"
+                d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.866-.013-1.699-2.782.604-3.369-1.342-3.369-1.342-.455-1.157-1.11-1.466-1.11-1.466-.907-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.088 2.91.833.091-.647.35-1.088.636-1.338-2.222-.253-4.555-1.111-4.555-4.944 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.272.098-2.65 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0 1 12 6.844c.85.004 1.705.115 2.504.338 1.909-1.294 2.748-1.025 2.748-1.025.546 1.378.203 2.397.1 2.65.64.699 1.028 1.592 1.028 2.683 0 3.842-2.337 4.688-4.566 4.938.359.309.679.918.679 1.852 0 1.337-.012 2.416-.012 2.744 0 .267.18.577.688.479C19.138 20.162 22 16.417 22 12 22 6.477 17.523 2 12 2z"
+              />
+            </svg>
+            <span
+              style={{
+                position: 'absolute',
+                width: 1,
+                height: 1,
+                margin: -1,
+                overflow: 'hidden',
+                clip: 'rect(0,0,0,0)',
+                whiteSpace: 'nowrap',
+                border: 0,
+              }}
             >
-              {rowOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            {isGenerating && <output className="spinner" aria-live="polite" />}
-          </div>
-          <div>
-            <button
-              type="button"
-              className="theme-btn-mobile"
-              onClick={() => setMode((m) => (m === 'dark' ? 'light' : 'dark'))}
-              aria-label="Toggle theme"
-              title="Toggle theme"
-            >
-              {mode === 'dark' ? '☀︎' : '🌙'}
-            </button>
-          </div>
+              GitHub repository
+            </span>
+          </a>
         </div>
       </div>
 
-      {/* Body: sidebar + content */}
       <div className="shell">
-        {/* Sidebar */}
-        <aside id="app-sidebar" className="sidebar">
-          {examples.map((ex) => (
-            <div key={ex.key} className="nav-group">
-              <a
-                href={`#/${ex.key}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigate(ex.key);
-                }}
-                className={ex.key === activeExampleKey ? 'nav-title active' : 'nav-title'}
-              >
-                {ex.title}
-              </a>
-              {ex.key === activeExampleKey && (
-                <ul className="variants">
-                  {ex.variants.map((v, i) => (
-                    <li key={v.name}>
-                      <a
-                        href={`#/${ex.key}/${i}`}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          navigate(ex.key, i);
-                        }}
-                        className={i === activeVariantIndex ? 'active' : undefined}
-                      >
-                        {v.name}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ))}
+        <aside id="app-sidebar" className="sidebar" aria-label="Example navigation">
+          <div className="section">
+            <div className="section-title">Examples</div>
+            <nav>
+              <div className="nav-group">
+                {routes.map((r) => (
+                  <a
+                    key={r.key}
+                    href={`#/${r.key}`}
+                    className={key === r.key ? 'nav-title active' : 'nav-title'}
+                    onClick={(ev) => {
+                      ev.preventDefault();
+                      navigate(r.key, 0);
+                      setSidebarOpen(false);
+                    }}
+                  >
+                    {r.title}
+                  </a>
+                ))}
+              </div>
+            </nav>
+          </div>
         </aside>
 
-        {/* Mobile backdrop */}
-        <button
-          type="button"
-          className="backdrop"
-          aria-hidden={!sidebarOpen}
-          tabIndex={-1}
-          onClick={() => setSidebarOpen(false)}
-        />
-
-        {/* Content */}
         <main className="main">
-          <div style={{ marginBottom: 10 }}>
-            <h2 className="heading">{activeExample.title}</h2>
-            <p className="note">
-              {activeVariant.name}
-              {activeVariant.note ? ` — ${activeVariant.note}` : ''}
-            </p>
-          </div>
-          {activeExample.key === 'layout' ? (
-            <LayoutDemo />
-          ) : activeExample.key === 'visibility' ? (
-            <VisibilityDemo />
-          ) : (
-            <>
-              <MassiveTable<Row | GroupHeader>
-                key={`${activeExample.key}:${activeVariantIndex}:${dataVersion}`}
-                getRows={getRows}
-                rowCount={data.length}
-                columns={columns}
-                classes={baseClasses}
-                className={mode === 'dark' ? darkTheme.theme : lightTheme.theme}
-                {...activeVariant.props}
-                onColumnOrderPreviewChange={(o) => setPreviewOrder(o)}
-                onColumnOrderChange={(o) => {
-                  setOrder(o);
-                  setPreviewOrder(null);
-                }}
-                style={{ height: '70vh', width: '100%' }}
-              />
-              {/* Usage panel */}
-              <section className="usage" aria-label="Usage code">
-                <div className="usage-head">
-                  <h3 className="usage-title">Usage</h3>
-                  <div className="usage-actions">
-                    <button className="ghost-btn" type="button" onClick={copyUsage}>
-                      Copy
-                    </button>
-                  </div>
-                </div>
-                <pre className="code">
-                  <code ref={usageCodeRef} />
-                </pre>
-              </section>
-            </>
+          {key === 'basic' && (
+            <BasicPage variantIndex={variant} onVariantChange={(i) => navigate('basic', i)} />
           )}
+          {key === 'visibility' && <VisibilityPage />}
+          {key === 'logs' && (
+            <LogsPage variantIndex={variant} onVariantChange={(i) => navigate('logs', i)} />
+          )}
+          {key === 'custom' && (
+            <CustomPage variantIndex={variant} onVariantChange={(i) => navigate('custom', i)} />
+          )}
+          {key === 'sorting' && (
+            <SortingPage variantIndex={variant} onVariantChange={(i) => navigate('sorting', i)} />
+          )}
+          {key === 'reorder' && (
+            <ReorderPage variantIndex={variant} onVariantChange={(i) => navigate('reorder', i)} />
+          )}
+          {key === 'resize' && (
+            <ResizePage variantIndex={variant} onVariantChange={(i) => navigate('resize', i)} />
+          )}
+          {key === 'grouping' && (
+            <GroupingPage variantIndex={variant} onVariantChange={(i) => navigate('grouping', i)} />
+          )}
+          {key === 'all' && (
+            <AllFeaturesPage variantIndex={variant} onVariantChange={(i) => navigate('all', i)} />
+          )}
+          {key === 'layout' && <LayoutPage />}
         </main>
       </div>
+      <button
+        type="button"
+        className="backdrop"
+        aria-label="Close menu"
+        onClick={() => setSidebarOpen(false)}
+      />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <DemoProvider>
+      <Shell />
+    </DemoProvider>
   );
 }
