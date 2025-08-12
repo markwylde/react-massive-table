@@ -162,6 +162,7 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
   );
   const { columnsOrdered, order, move } = useColumnOrder(columns);
   const hasInlineGroup = React.useMemo(() => columns.some((c) => !!c.inlineGroup), [columns]);
+  const headerRefs = React.useRef<(HTMLElement | null)[]>([]);
 
   // To avoid browser max scroll height limits (~16.7M px in some engines),
   // we chunk the scrollable canvas and keep a base offset we subtract from
@@ -408,6 +409,68 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
     window.addEventListener('mouseup', onUp);
     window.addEventListener('touchmove', onTouchMove, { passive: false });
     window.addEventListener('touchend', onUp);
+  };
+
+  // Touch-based column reorder support
+  const touchDragRef = React.useRef<{
+    active: boolean;
+    idx: number;
+    startX: number;
+    startY: number;
+  } | null>(null);
+  const findIndexByClientX = (cx: number) => {
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < headerRefs.current.length; i++) {
+      const el = headerRefs.current[i];
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      const center = r.left + r.width / 2;
+      const d = Math.abs(center - cx);
+      if (d < bestDist) {
+        bestDist = d;
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  };
+  const onHeaderTouchStart = (i: number) => (e: React.TouchEvent) => {
+    if (!enableReorder) return;
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    touchDragRef.current = { active: false, idx: i, startX: t.clientX, startY: t.clientY };
+    const onMove = (ev: TouchEvent) => {
+      const tt = ev.touches[0];
+      if (!tt || !touchDragRef.current) return;
+      const dx = Math.abs(tt.clientX - touchDragRef.current.startX);
+      const dy = Math.abs(tt.clientY - touchDragRef.current.startY);
+      if (!touchDragRef.current.active) {
+        if (dx > 6 && dx > dy) {
+          touchDragRef.current.active = true;
+          suppressClickRef.current = Date.now();
+        } else {
+          return;
+        }
+      }
+      ev.preventDefault();
+      const targetIdx = findIndexByClientX(tt.clientX);
+      const from = touchDragRef.current.idx;
+      if (Number.isFinite(from) && Number.isFinite(targetIdx) && from !== targetIdx) {
+        move(from, targetIdx);
+        touchDragRef.current.idx = targetIdx;
+      }
+    };
+    const onEnd = () => {
+      window.removeEventListener('touchmove', onMove as EventListener);
+      window.removeEventListener('touchend', onEnd);
+      if (touchDragRef.current?.active) {
+        notifyFinalOrder();
+        suppressClickRef.current = Date.now();
+      }
+      touchDragRef.current = null;
+    };
+    window.addEventListener('touchmove', onMove as EventListener, { passive: false });
+    window.addEventListener('touchend', onEnd);
   };
 
   const totalHeight = effectiveRowCount * rowH;
@@ -710,26 +773,75 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
             {groupBy.length === 0 && (
               <span className={classes.groupEmpty}>Drag a column header here</span>
             )}
-            {groupBy.map((g, i) => {
-              const title =
-                columns.find((c) => JSON.stringify(c.path) === JSON.stringify(g.path))?.title ??
-                JSON.stringify(g.path);
-              return (
-                <button
-                  key={JSON.stringify(g.path)}
-                  draggable
-                  onDragStart={onGroupChipDragStart(i)}
-                  onDragOver={onGroupChipDragOver(i)}
-                  onDrop={onGroupChipDrop(i)}
-                  onDragEnd={onGroupChipDragEnd(i)}
-                  title="Drag to reorder. Drag off to remove."
-                  type="button"
-                  className={classes.groupChip}
-                >
-                  {title}
-                </button>
-              );
-            })}
+            <ul className={classes.groupList} aria-label="Active group fields">
+              {groupBy.map((g, i) => {
+                const title =
+                  columns.find((c) => JSON.stringify(c.path) === JSON.stringify(g.path))?.title ??
+                  JSON.stringify(g.path);
+                return (
+                  <li
+                    key={JSON.stringify(g.path)}
+                    draggable
+                    onDragStart={onGroupChipDragStart(i)}
+                    onDragOver={onGroupChipDragOver(i)}
+                    onDrop={onGroupChipDrop(i)}
+                    onDragEnd={onGroupChipDragEnd(i)}
+                    title="Drag to reorder. Drag off to remove."
+                    className={classes.groupChip}
+                  >
+                    <span className={classes.groupChipLabel}>{title}</span>
+                    <span className={classes.groupChipControls}>
+                      <button
+                        type="button"
+                        className={classes.chipBtn}
+                        title="Move left"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setGroupBy((prev) => {
+                            if (i <= 0) return prev;
+                            const next = prev.slice();
+                            const [m] = next.splice(i, 1);
+                            next.splice(i - 1, 0, m);
+                            return next;
+                          });
+                        }}
+                      >
+                        ◀
+                      </button>
+                      <button
+                        type="button"
+                        className={classes.chipBtn}
+                        title="Move right"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setGroupBy((prev) => {
+                            if (i >= prev.length - 1) return prev;
+                            const next = prev.slice();
+                            const [m] = next.splice(i, 1);
+                            next.splice(i + 1, 0, m);
+                            return next;
+                          });
+                        }}
+                      >
+                        ▶
+                      </button>
+                      <button
+                        type="button"
+                        className={classes.chipBtn}
+                        title="Remove"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setGroupBy((prev) => prev.filter((_, idx) => idx !== i));
+                          setExpanded(() => []);
+                        }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         )}
         <div
@@ -744,28 +856,84 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
             const sortDir = sortIdx >= 0 ? sorts[sortIdx].dir : null;
             const draggableFor = enableReorder || showGroupByDropZone;
             const clickableForSort = enableSort && !draggableFor;
-            return (
+
+            // Use div when group toggle is present to avoid nested buttons
+            const commonProps = {
+              title: col.headerTooltip,
+              draggable: draggableFor,
+              onClick: (e: React.MouseEvent) =>
+                toggleSortForColumnIndex(i, e.shiftKey || e.metaKey || e.ctrlKey),
+              onKeyDown: (e: React.KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  toggleSortForColumnIndex(i, e.shiftKey || e.metaKey || e.ctrlKey);
+                }
+              },
+              onDragStart: handleHeaderDragStart(i),
+              onDragOver: handleHeaderDragOver(i),
+              onDrop: handleHeaderDrop(i),
+              onDragEnd: handleHeaderDragEnd,
+              onTouchStart: onHeaderTouchStart(i),
+              className: cn(
+                classes.headerCell,
+                draggableFor && classes.headerCellGrab,
+                clickableForSort && classes.headerCellClickable,
+              ),
+            };
+
+            return showGroupByDropZone ? (
+              // biome-ignore lint/a11y/useSemanticElements: Cannot use button due to nested button for group toggle
+              <div
+                key={order[i]}
+                ref={(el) => {
+                  headerRefs.current[i] = el;
+                }}
+                role="button"
+                tabIndex={0}
+                {...commonProps}
+              >
+                <span className={classes.headerTitle}>{col.title}</span>
+                {sortDir && (
+                  <span aria-hidden className={classes.headerSort}>
+                    {sortDir === 'asc' ? '▲' : '▼'}
+                    {sorts.length > 1 && sortIdx >= 0 && <span>{sortIdx + 1}</span>}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className={classes.headerGroupBtn}
+                  title="Toggle group by this column"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const pathKey = JSON.stringify(col.path);
+                    setGroupBy((prev) => {
+                      const idx = prev.findIndex((g) => JSON.stringify(g.path) === pathKey);
+                      if (idx >= 0) return prev.filter((_, j) => j !== idx);
+                      return [...prev, { path: col.path }];
+                    });
+                  }}
+                >
+                  ⊕
+                </button>
+                {enableResize && (
+                  <span
+                    aria-hidden="true"
+                    draggable={false}
+                    onDragStart={(e) => e.preventDefault()}
+                    onMouseDown={(e) => onResizeDown(i)(e)}
+                    onTouchStart={(e) => onResizeDown(i)(e)}
+                    className={classes.resizeGrip}
+                  />
+                )}
+              </div>
+            ) : (
               <button
                 key={order[i]}
-                title={col.headerTooltip}
-                draggable={draggableFor}
-                onClick={(e) => toggleSortForColumnIndex(i, e.shiftKey || e.metaKey || e.ctrlKey)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    toggleSortForColumnIndex(i, e.shiftKey || e.metaKey || e.ctrlKey);
-                  }
+                ref={(el) => {
+                  headerRefs.current[i] = el;
                 }}
-                onDragStart={handleHeaderDragStart(i)}
-                onDragOver={handleHeaderDragOver(i)}
-                onDrop={handleHeaderDrop(i)}
-                onDragEnd={handleHeaderDragEnd}
                 type="button"
-                className={cn(
-                  classes.headerCell,
-                  draggableFor && classes.headerCellGrab,
-                  clickableForSort && classes.headerCellClickable,
-                )}
+                {...commonProps}
               >
                 <span className={classes.headerTitle}>{col.title}</span>
                 {sortDir && (

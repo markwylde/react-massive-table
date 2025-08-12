@@ -88,6 +88,25 @@ function buildLogs(): LogRow[] {
 }
 
 export default function App() {
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const topbarRef = React.useRef<HTMLDivElement | null>(null);
+  const [topbarH, setTopbarH] = React.useState<number>(56);
+  React.useLayoutEffect(() => {
+    const el = topbarRef.current;
+    if (!el) return;
+    const update = () => setTopbarH(el.offsetHeight || 56);
+    update();
+    let ro: ResizeObserver | null = null;
+    try {
+      ro = new ResizeObserver(update);
+      ro.observe(el);
+    } catch {}
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      ro?.disconnect();
+    };
+  }, []);
   const [mode, setMode] = React.useState<'light' | 'dark'>(() => {
     try {
       const saved = localStorage.getItem('massive-table-mode') as 'light' | 'dark' | null;
@@ -721,14 +740,16 @@ export default function App() {
     const v = typeof variant === 'number' ? `/${variant}` : '';
     const next = `#/${key}${v}`;
     if (window.location.hash !== next) window.location.hash = next;
+    // Close sidebar on mobile after navigation
+    setSidebarOpen(false);
   }, []);
 
   const activeVariant = activeExample.variants[activeVariantIndex] ??
     activeExample.variants[0] ?? { name: 'Variant', props: {} };
 
   // Keep order state to display in reorder example
-  const [order, setOrder] = React.useState<number[]>([]);
-  const [previewOrder, setPreviewOrder] = React.useState<number[] | null>(null);
+  const [_order, setOrder] = React.useState<number[]>([]);
+  const [_previewOrder, setPreviewOrder] = React.useState<number[] | null>(null);
 
   // Helper: build a concise usage snippet per variant
   const usageCode = React.useMemo(() => {
@@ -742,8 +763,8 @@ export default function App() {
       ? `const columns: ColumnDef<Row>[] = [\n  { path: ['index'], title: '#', width: 80 },\n  { path: ['level'], title: 'Level', width: 200 },\n  { path: ['message'], title: 'Message' },\n  { path: ['trace_id'], title: 'Trace ID', inlineGroup: true },\n];\n`
       : `const columns: ColumnDef<Row>[] = [\n  { path: ['index'], title: '#', width: 80, align: 'right' },\n  { path: ['category'], title: 'Category', width: 200 },\n  { path: ['favourites','colour'], title: 'Favourite Colour', width: 200 },\n  { path: ['favourites','number'], title: 'Favourite Number', width: 140, align: 'right' },\n  { path: ['lastName'], title: 'Last Name', width: 220 },\n  { path: ['firstName'], title: 'First Name' },\n];\n`;
     const getRowsSig = isLogs
-      ? `// See demo source for inline-grouping by trace\nconst getRows = (start: number, end: number, req?: RowsRequest<Row>) => {/* ... */};\n`
-      : `// Provide rows for the visible window\nconst getRows = (start: number, end: number, req?: RowsRequest<Row>) => {/* ... */};\n`;
+      ? `// Example: inline-grouped logs (flatten as needed)\nconst logs: Row[] = /* your log rows */ [];\n\nconst getRows = (start: number, end: number, req?: RowsRequest<Row>) => {\n  // Optionally sort and inline-group by trace using req\n  const flat = logs;\n  return { rows: flat.slice(start, end), total: flat.length };\n};\n`
+      : `// Example: in-memory data\nconst rows: Row[] = /* your rows */ [];\n\nconst getRows = (start: number, end: number, req?: RowsRequest<Row>) => {\n  // Optionally sort/filter using req\n  const src = rows;\n  return { rows: src.slice(start, end), total: src.length };\n};\n`;
     const props: string[] = [];
     // Always include core props
     if (isLogs) {
@@ -998,33 +1019,35 @@ export default function App() {
   };
 
   return (
-    <div className="app" data-theme={mode}>
+    <div
+      className="app"
+      data-theme={mode}
+      data-sidebar-open={sidebarOpen ? 'true' : 'false'}
+      style={{ ['--app-topbar-h' as string]: `${topbarH}px` }}
+    >
       {/* Top bar */}
-      <div className="topbar">
+      <div className="topbar" ref={topbarRef}>
         <div className="brand">
+          <button
+            type="button"
+            className="burger"
+            aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={sidebarOpen}
+            aria-controls="app-sidebar"
+            onClick={() => setSidebarOpen((v) => !v)}
+          >
+            ☰
+          </button>
           <h1>MassiveTable Examples</h1>
-          {activeExample.key === 'reorder' && (
-            <span className="subtle">
-              {previewOrder
-                ? `Preview order: ${previewOrder.join(', ')}`
-                : `Final order: ${order.join(', ') || '(default)'}`}
-            </span>
-          )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="topbar-actions">
           <span className="subtle">Rows</span>
           <select
             value={rowCount}
             onChange={(e) => startGeneration(Number(e.target.value))}
             disabled={isGenerating}
             aria-busy={isGenerating}
-            style={{
-              padding: '6px 10px',
-              borderRadius: 8,
-              border: '1px solid var(--border)',
-              background: 'transparent',
-              color: 'inherit',
-            }}
+            className="rows-select"
           >
             {rowOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -1033,7 +1056,6 @@ export default function App() {
             ))}
           </select>
           {isGenerating && <output className="spinner" aria-live="polite" />}
-          <span className="subtle">Theme</span>
           <fieldset className="segmented" aria-label="Theme toggle">
             <button
               onClick={() => setMode('light')}
@@ -1053,12 +1075,42 @@ export default function App() {
             </button>
           </fieldset>
         </div>
+        <div className="topbar-sub">
+          <div className="topbar-rows">
+            <span className="subtle">Rows</span>
+            <select
+              value={rowCount}
+              onChange={(e) => startGeneration(Number(e.target.value))}
+              disabled={isGenerating}
+              aria-busy={isGenerating}
+              className="rows-select"
+            >
+              {rowOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            {isGenerating && <output className="spinner" aria-live="polite" />}
+          </div>
+          <div>
+            <button
+              type="button"
+              className="theme-btn-mobile"
+              onClick={() => setMode((m) => (m === 'dark' ? 'light' : 'dark'))}
+              aria-label="Toggle theme"
+              title="Toggle theme"
+            >
+              {mode === 'dark' ? '☀︎' : '🌙'}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Body: sidebar + content */}
       <div className="shell">
         {/* Sidebar */}
-        <aside className="sidebar">
+        <aside id="app-sidebar" className="sidebar">
           {examples.map((ex) => (
             <div key={ex.key} className="nav-group">
               <a
@@ -1092,6 +1144,15 @@ export default function App() {
             </div>
           ))}
         </aside>
+
+        {/* Mobile backdrop */}
+        <button
+          type="button"
+          className="backdrop"
+          aria-hidden={!sidebarOpen}
+          tabIndex={-1}
+          onClick={() => setSidebarOpen(false)}
+        />
 
         {/* Content */}
         <main className="main">

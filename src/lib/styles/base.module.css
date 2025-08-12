@@ -98,6 +98,27 @@
 .groupChip:active {
   cursor: grabbing;
 }
+.groupChipLabel {
+  white-space: nowrap;
+}
+.groupChipControls {
+  display: none;
+  gap: 4px;
+}
+.chipBtn {
+  border: 1px solid var(--massive-table-border);
+  background: transparent;
+  color: inherit;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 6px;
+}
+@media (max-width: 900px) {
+  .groupChipControls {
+    display: inline-flex;
+  }
+}
 
 /* Invisible drag image element to suppress default drag ghost */
 .dragImage {
@@ -164,6 +185,17 @@
   gap: 4px;
   font-size: 11px;
   opacity: 0.85;
+}
+.headerGroupBtn {
+  margin-left: auto;
+  border: 1px solid var(--massive-table-border);
+  background: transparent;
+  color: inherit;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 6px;
+  cursor: pointer;
 }
 .headerHint {
   margin-left: auto;
