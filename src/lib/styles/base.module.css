@@ -37,6 +37,9 @@
   height: 100%;
   contain: content;
   background: var(--massive-table-bg);
+  /* Prevent rubber-band overscroll bounce and scroll chaining */
+  overscroll-behavior: none; /* disable affordance and chaining on all axes */
+  overscroll-behavior-y: none; /* explicit for vertical bounce */
   /* Firefox scrollbar colors */
   scrollbar-color: var(--massive-table-scrollbar-thumb) var(--massive-table-scrollbar-track);
 }
