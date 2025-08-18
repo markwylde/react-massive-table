@@ -28,7 +28,6 @@
     Arial,
     "Apple Color Emoji",
     "Segoe UI Emoji";
-  font-size: 13px;
 }
 
 .viewport {
@@ -42,6 +41,10 @@
   overscroll-behavior-y: none; /* explicit for vertical bounce */
   /* Firefox scrollbar colors */
   scrollbar-color: var(--massive-table-scrollbar-thumb) var(--massive-table-scrollbar-track);
+}
+
+.viewport button {
+  font-size: 100%;
 }
 
 /* Scrollbar polish */
@@ -75,6 +78,10 @@
   color: var(--massive-table-header-color);
   border-bottom: 1px solid var(--massive-table-border);
   box-shadow: var(--massive-table-header-shadow);
+}
+.groupBar ul {
+  padding: 0;
+  margin: 0;
 }
 .groupBarOver {
   outline: 2px dashed var(--massive-table-border);
@@ -113,7 +120,6 @@
   background: transparent;
   color: inherit;
   border-radius: 6px;
-  font-size: 11px;
   line-height: 1;
   padding: 2px 6px;
 }
@@ -210,7 +216,6 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
   opacity: 0.85;
 }
 .headerGroupBtn {
@@ -219,7 +224,6 @@
   background: transparent;
   color: inherit;
   border-radius: 6px;
-  font-size: 12px;
   line-height: 1;
   padding: 2px 6px;
   cursor: pointer;
@@ -232,7 +236,6 @@
 }
 .headerHint {
   margin-left: auto;
-  font-size: 11px;
   opacity: 0.45;
 }
 .resizeGrip {
@@ -315,7 +318,6 @@
   background: transparent;
   color: inherit;
   border-radius: 6px;
-  font-size: 12px;
   width: 22px;
   height: 22px;
 }

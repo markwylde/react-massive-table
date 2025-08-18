@@ -977,7 +977,11 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
             );
           })}
           {draggingColIndex !== null && (
-            <div className={classes.overlayLayer} aria-hidden>
+            <div
+              className={classes.overlayLayer}
+              aria-hidden
+              style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4 }}
+            >
               {overlayMeta.widths.map((w, j) => {
                 const isDataCol = hasInlineGroup ? j > 0 : true;
                 const dataIdx = hasInlineGroup ? j - 1 : j;
@@ -987,14 +991,24 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
                   <div
                     key={`hdr-ov:${hasInlineGroup && j === 0 ? '__inline' : JSON.stringify(columnsOrdered[dataIdx]?.path)}`}
                     className={classes.overlayCol}
-                    style={{ left: overlayMeta.lefts[j], width: w }}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      bottom: 0,
+                      left: overlayMeta.lefts[j],
+                      width: w,
+                      background: 'var(--massive-table-dim-overlay, rgba(0, 0, 0, 0.1))',
+                    }}
                   />
                 );
               })}
             </div>
           )}
         </div>
-        <div className={classes.rows} style={{ height: contentHeight, width: totalWidth }}>
+        <div
+          className={classes.rows}
+          style={{ height: contentHeight, width: totalWidth, position: 'relative' }}
+        >
           {Array.from({ length: Math.max(0, end - start) }).map((_, i) => {
             const rowIndex = start + i;
             const row = cache.rows[rowIndex];
@@ -1204,7 +1218,11 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
             );
           })}
           {draggingColIndex !== null && (
-            <div className={classes.overlayLayer} aria-hidden>
+            <div
+              className={classes.overlayLayer}
+              aria-hidden
+              style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4 }}
+            >
               {overlayMeta.widths.map((w, j) => {
                 const isDataCol = hasInlineGroup ? j > 0 : true;
                 const dataIdx = hasInlineGroup ? j - 1 : j;
@@ -1214,7 +1232,14 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
                   <div
                     key={`row-ov:${hasInlineGroup && j === 0 ? '__inline' : JSON.stringify(columnsOrdered[dataIdx]?.path)}`}
                     className={classes.overlayCol}
-                    style={{ left: overlayMeta.lefts[j], width: w, height: '100%' }}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      bottom: 0,
+                      left: overlayMeta.lefts[j],
+                      width: w,
+                      background: 'var(--massive-table-dim-overlay, rgba(0, 0, 0, 0.1))',
+                    }}
                   />
                 );
               })}
