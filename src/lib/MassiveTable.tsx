@@ -18,6 +18,8 @@ type Cache<Row> = {
 function useRowCache<Row>(count: number, resetKey?: unknown) {
   const [cache, setCache] = React.useState<Cache<Row>>({ rows: Array(count), version: 0 });
   React.useEffect(() => {
+    // include resetKey to allow external triggers to reset cache
+    void resetKey;
     setCache({ rows: Array(count), version: 0 });
   }, [count, resetKey]);
   const setRange = React.useCallback((start: number, data: Row[]) => {
@@ -178,20 +180,24 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
   // Keep widths in sync when the columns set (by identity) changes.
   // This runs when `columns` prop changes (not on drag preview reorders).
   const prevColumnsRef = React.useRef<ColumnDef<Row>[]>(columns);
+  const prevWidthsRef = React.useRef<number[] | null>(null);
   React.useEffect(() => {
     const prev = prevColumnsRef.current;
     // Build a map of previous widths by column identity
     const widthByPath = new Map<string, number>();
+    const prevWidths = prevWidthsRef.current;
     for (let i = 0; i < prev.length; i++) {
-      widthByPath.set(JSON.stringify(prev[i].path), colWidths[i] ?? prev[i].width ?? defaultWidth);
+      const prevWidth = prevWidths ? prevWidths[i] : undefined;
+      widthByPath.set(JSON.stringify(prev[i].path), prevWidth ?? prev[i].width ?? defaultWidth);
     }
     const next = columns.map(
       (c) => widthByPath.get(JSON.stringify(c.path)) ?? c.width ?? defaultWidth,
     );
-    if (next.length !== colWidths.length || next.some((w, i) => w !== colWidths[i])) {
-      setColWidths(next);
-    }
+    setColWidths((curr) =>
+      next.length !== curr.length || next.some((w, i) => w !== curr[i]) ? next : curr,
+    );
     prevColumnsRef.current = columns;
+    prevWidthsRef.current = next;
   }, [columns]);
 
   // Capture widths at drag start and only remap widths to follow
@@ -241,7 +247,17 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
       setCacheRange(a, rows);
       onRowsRenderedRef.current?.(a, b);
     });
-  }, [start, end, overscan, rowCount, setCacheRange, sortsSig, groupSig, effectiveRowCount]);
+  }, [
+    start,
+    end,
+    overscan,
+    rowCount,
+    setCacheRange,
+    effectiveRowCount,
+    sorts,
+    groupBy,
+    expandedSet,
+  ]);
 
   // Handle scroll to compute visible range
   const onScroll = React.useCallback(() => {
@@ -286,7 +302,7 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
 
   React.useEffect(() => {
     onScroll();
-  }, [effectiveRowCount, rowH]);
+  }, [onScroll]);
 
   // Build grid columns template based on widths
   const inlineColWidth = 28; // px for dedicated inline-group toggle column when present
@@ -505,10 +521,15 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
   // Reset measured height when table structure changes (sorts/group-by paths),
   // but NOT on expand/collapse to avoid flashing reflows.
   React.useEffect(() => {
+    // touch deps so linter recognizes intent while keeping effect simple
+    void sortsSig;
+    void groupPathsSig;
     setMeasuredRowHeight(null);
   }, [sortsSig, groupPathsSig]);
 
   React.useLayoutEffect(() => {
+    // touch cache.version so dependency is recognized without changing behavior
+    void cache.version;
     if (measuredRowHeight !== null) return; // Already measured
     const el = firstRowRef.current;
     if (!el) return;
@@ -747,6 +768,8 @@ export function MassiveTable<Row = unknown>(props: MassiveTableProps<Row>) {
   // sticky offset matches reality (chips can wrap and change height).
   React.useLayoutEffect(() => {
     if (!showGroupByDropZone) return;
+    // touch dependency so height sync also reacts to group changes
+    void groupBy.length;
     const el = groupBarRef.current;
     if (!el) return;
     const update = () => setGroupBarHeight(el.offsetHeight);

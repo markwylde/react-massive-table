@@ -59,6 +59,7 @@ function Shell() {
 
   const { mode, setMode, rowCount, startGeneration, isGenerating } = useDemo();
   const { key, variant, navigate } = useHashRoute('basic');
+  const sidebarId = React.useId();
 
   return (
     <div
@@ -74,7 +75,7 @@ function Shell() {
             className="burger"
             aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={sidebarOpen}
-            aria-controls="app-sidebar"
+            aria-controls={sidebarId}
             onClick={() => setSidebarOpen((v) => !v)}
           >
             ☰
@@ -151,7 +152,7 @@ function Shell() {
       </div>
 
       <div className="shell">
-        <aside id="app-sidebar" className="sidebar" aria-label="Example navigation">
+        <aside id={sidebarId} className="sidebar" aria-label="Example navigation">
           <div className="section">
             <div className="section-title">Examples</div>
             <nav>

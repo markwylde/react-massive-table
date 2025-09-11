@@ -347,9 +347,9 @@ body {
 /* Force Prism blocks to use themed background */
 pre[class*="language-"],
 code[class*="language-"] {
-  background: var(--soft) !important;
+  background: var(--soft);
   color: var(--fg);
-  text-shadow: none !important;
+  text-shadow: none;
   font-weight: 400;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -357,33 +357,33 @@ code[class*="language-"] {
 /* ensure nested spans don't pick up bold weights */
 pre[class*="language-"] *,
 code[class*="language-"] * {
-  font-weight: 400 !important;
+  font-weight: 400;
 }
 
 /* Dark theme Prism overrides: ensure readable foregrounds */
 [data-theme="dark"] pre[class*="language-"],
 [data-theme="dark"] code[class*="language-"] {
-  color: var(--fg) !important;
+  color: var(--fg);
 }
 [data-theme="dark"] .token.comment,
 [data-theme="dark"] .token.prolog,
 [data-theme="dark"] .token.doctype,
 [data-theme="dark"] .token.cdata {
-  color: var(--muted) !important;
+  color: var(--muted);
 }
 [data-theme="dark"] .token.punctuation {
-  color: #a1a9b6 !important;
+  color: #a1a9b6;
 }
 [data-theme="dark"] .token.property,
 [data-theme="dark"] .token.tag,
 [data-theme="dark"] .token.constant,
 [data-theme="dark"] .token.symbol,
 [data-theme="dark"] .token.deleted {
-  color: #fca5a5 !important; /* red-300 */
+  color: #fca5a5; /* red-300 */
 }
 [data-theme="dark"] .token.boolean,
 [data-theme="dark"] .token.number {
-  color: #d8b4fe !important; /* purple-300 */
+  color: #d8b4fe; /* purple-300 */
 }
 [data-theme="dark"] .token.selector,
 [data-theme="dark"] .token.attr-name,
@@ -391,28 +391,28 @@ code[class*="language-"] * {
 [data-theme="dark"] .token.char,
 [data-theme="dark"] .token.builtin,
 [data-theme="dark"] .token.inserted {
-  color: #bef264 !important; /* lime-300 */
+  color: #bef264; /* lime-300 */
 }
 [data-theme="dark"] .token.operator,
 [data-theme="dark"] .token.entity,
 [data-theme="dark"] .token.url {
-  color: #93c5fd !important; /* sky-300 */
-  background: transparent !important;
+  color: #93c5fd; /* sky-300 */
+  background: transparent;
 }
 [data-theme="dark"] .token.atrule,
 [data-theme="dark"] .token.attr-value,
 [data-theme="dark"] .token.keyword {
-  color: #93c5fd !important; /* sky-300 */
-  font-weight: 400 !important;
+  color: #93c5fd; /* sky-300 */
+  font-weight: 400;
 }
 [data-theme="dark"] .token.function,
 [data-theme="dark"] .token.class-name {
-  color: #fbbf24 !important; /* amber-400 */
+  color: #fbbf24; /* amber-400 */
 }
 [data-theme="dark"] .token.regex,
 [data-theme="dark"] .token.important,
 [data-theme="dark"] .token.variable {
-  color: #f472b6 !important; /* pink-400 */
+  color: #f472b6; /* pink-400 */
 }
 
 /* Syntax highlighting */

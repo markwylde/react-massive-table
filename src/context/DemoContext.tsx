@@ -189,6 +189,9 @@ export const DemoProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const sortedCacheRef = React.useRef<Map<string, Row[]>>(new Map());
   const groupedCacheRef = React.useRef<Map<string, (Row | GroupHeader)[]>>(new Map());
   React.useEffect(() => {
+    // depend on `data` to clear caches whenever new data is generated
+    // touch the dependency to satisfy exhaustive-deps without altering behavior
+    void data;
     sortedCacheRef.current.clear();
     groupedCacheRef.current.clear();
   }, [data]);
