@@ -1,6 +1,6 @@
 {
   "name": "react-massive-table",
-  "version": "1.6.5",
+  "version": "1.6.6",
   "private": false,
   "type": "module",
   "main": "dist/index.cjs",
