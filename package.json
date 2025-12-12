@@ -60,7 +60,7 @@
     "jsdom": "^26.1.0",
     "prismjs": "^1.30.0",
     "typescript": "^5.9.2",
-    "vite": "^7.1.5",
+    "vite": "^7.1.11",
     "vitest": "^3.2.4"
   },
   "typesVersions": {
