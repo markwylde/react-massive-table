@@ -49,19 +49,19 @@
     "react-dom": ">=18"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.2.4",
-    "@testing-library/jest-dom": "^6.8.0",
+    "@biomejs/biome": "^2.3.8",
+    "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
-    "@types/react": "^19.1.12",
-    "@types/react-dom": "^19.1.9",
-    "@vitejs/plugin-react": "^5.0.2",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.2",
     "chance": "^1.1.13",
-    "jsdom": "^26.1.0",
+    "jsdom": "^27.3.0",
     "prismjs": "^1.30.0",
-    "typescript": "^5.9.2",
-    "vite": "^7.1.11",
-    "vitest": "^3.2.4"
+    "typescript": "^5.9.3",
+    "vite": "^7.2.7",
+    "vitest": "^4.0.15"
   },
   "typesVersions": {
     "*": {
