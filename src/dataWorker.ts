@@ -181,7 +181,7 @@ function makeRow(i: number, seed: number | string): Row {
 
 self.addEventListener('message', (evt: MessageEvent<GenerateMessage>) => {
   const msg = evt.data;
-  if (!msg || msg.type !== 'generate') return;
+  if (msg?.type !== 'generate') return;
   const { count, seed } = msg;
   // Generate synchronously inside the worker
   const rows: Row[] = new Array(count);
