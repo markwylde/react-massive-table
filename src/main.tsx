@@ -1,9 +1,9 @@
 import * as React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
-import './app.css';
-// Prism theme (can swap for other themes)
+// Load Prism's defaults before the app theme so light/dark overrides win.
 import 'prismjs/themes/prism.css';
+import './app.css';
 
 // Apply an initial theme attribute before React mounts to prevent FOUC
 try {
