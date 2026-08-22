@@ -55,7 +55,7 @@
     "@testing-library/user-event": "^14.6.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
-    "@vitejs/plugin-react": "^6.0.5",
+    "@vitejs/plugin-react": "^6.1.0",
     "chance": "^1.1.13",
     "jsdom": "^29.1.1",
     "prismjs": "^1.30.0",
